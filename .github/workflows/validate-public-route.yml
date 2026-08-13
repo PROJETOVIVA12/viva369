@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Verificar rota pública
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://repl.replit.app/avaliacao-publica)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://172.24.0.2:5173/avaliacao-publica)
           
           if [ $STATUS -ne 200 ]; then
             echo "❌ Rota pública NÃO está disponível! Status: $STATUS"
