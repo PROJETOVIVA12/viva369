@@ -1,0 +1,402 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import {
+  Scale, Activity, Droplet, Heart, Zap, Brain, Target,
+  Calendar, User, Award, Gift, Users, Sparkles,
+  CheckCircle, Share2, Copy, Check, UserPlus,
+  AlertCircle, TrendingUp, TrendingDown, ChevronDown,
+  ChevronUp, Clock, Camera, Image, BarChart3,
+  LineChart, ArrowUp, ArrowDown, Minus,
+  Weight, Ruler, Droplets, Flame, Timer
+} from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
+
+interface Avaliacao {
+  id: string;
+  usuario_id?: string;
+  user_id?: string;
+  data_avaliacao: string;
+  peso: number;
+  altura: number;
+  percentual_gordura: number;
+  massa_muscular: number;
+  massa_gordura: number;
+  agua_corporal: number;
+  metabolismo_basal: number;
+  imc: number;
+  idade_metabolica: number;
+  percentual_osso: number;
+  viscerais: number;
+  observacoes?: string;
+  criado_em: string;
+  foto_url?: string;
+}
+
+export default function AvaliacaoPublicaPage() {
+  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [avaliacao, setAvaliacao] = useState<Avaliacao | null>(null);
+  const [historico, setHistorico] = useState<any[]>([]);
+  const [usuarioNome, setUsuarioNome] = useState('');
+  const [usuarioFoto, setUsuarioFoto] = useState('');
+  const [metricasExpandidas, setMetricasExpandidas] = useState<Record<string, boolean>>({});
+  const [copied, setCopied] = useState(false);
+  
+  const refId = searchParams.get('ref') || '';
+
+  useEffect(() => {
+    if (id) {
+      carregarAvaliacao();
+    }
+  }, [id]);
+
+  const toggleMetrica = (metrica: string) => {
+    setMetricasExpandidas(prev => ({ ...prev, [metrica]: !prev[metrica] }));
+  };
+
+  const carregarAvaliacao = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data: avaliacaoData, error: avaliacaoError } = await supabase
+        .from('bioimpedancia')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (avaliacaoError || !avaliacaoData) {
+        setError('Avaliação não encontrada');
+        setLoading(false);
+        return;
+      }
+
+      setAvaliacao(avaliacaoData);
+
+      const registroComDono = avaliacaoData as Avaliacao & {
+        usuario_id?: string;
+        user_id?: string;
+      };
+
+      const donoId = registroComDono.usuario_id ?? registroComDono.user_id;
+      const colunaDono = registroComDono.usuario_id ? 'usuario_id' : 'user_id';
+
+      if (donoId) {
+        const { data: userData } = await supabase
+          .from('usuarios')
+          .select('nome, avatar_url')
+          .eq('id', donoId)
+          .maybeSingle();
+
+        if (userData) {
+          setUsuarioNome(userData.nome || 'Participante');
+          setUsuarioFoto(userData.avatar_url || '');
+        }
+
+        const { data: historicoData } = await supabase
+          .from('bioimpedancia')
+          .select('id, data_avaliacao, peso, percentual_gordura, massa_muscular, imc, viscerais, metabolismo_basal, idade_metabolica, agua_corporal')
+          .eq(colunaDono, donoId)
+          .order('data_avaliacao', { ascending: true });
+
+        if (historicoData) {
+          setHistorico(historicoData);
+        }
+      }
+    } catch (err) {
+      console.error('Erro:', err);
+      setError('Erro ao carregar avaliação');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatarData = (data: string) => {
+    return new Date(data).toLocaleDateString('pt-BR');
+  };
+
+  const getEvolucao = (campo: string) => {
+    if (historico.length < 2) return null;
+    const primeiro = historico[0][campo] as number;
+    const ultimo = historico[historico.length - 1][campo] as number;
+    const diferenca = ultimo - primeiro;
+    const percentual = (diferenca / primeiro) * 100;
+    return { diferenca, percentual, primeiro, ultimo };
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-emerald-400" />
+      </div>
+    );
+  }
+
+  if (error || !avaliacao) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <Card className="bg-slate-800 border-slate-700 max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white">Avaliação não encontrada</h2>
+            <p className="text-slate-400 text-sm">{error}</p>
+            <Button className="mt-4 bg-gradient-to-r from-emerald-500 to-amber-500 text-white" onClick={() => window.location.href = '/'}>
+              Voltar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 py-8 px-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-500 rounded-t-2xl p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Scale className="h-6 w-6" />
+                VIVA369
+              </h1>
+              <p className="text-white/80 text-sm">Conheça seu corpo • Transforme sua vida</p>
+            </div>
+            <Badge className="bg-white/20 text-white border-0">
+              <Calendar className="h-4 w-4 mr-2" />
+              {formatarData(avaliacao.data_avaliacao)}
+            </Badge>
+          </div>
+        </div>
+
+        <Card className="bg-slate-800 border-slate-700 rounded-t-none">
+          <CardContent className="p-6 space-y-6">
+            {/* Perfil */}
+            <div className="flex items-center gap-4 border-b border-slate-700 pb-4">
+              <Avatar className="h-16 w-16 border-2 border-emerald-500/30">
+                <AvatarImage src={avaliacao.foto_url || usuarioFoto} />
+                <AvatarFallback className="bg-emerald-500/20 text-emerald-400 text-lg">
+                  {usuarioNome?.charAt(0) || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="text-xl font-bold text-white">{usuarioNome || 'Participante'}</h2>
+                <p className="text-sm text-emerald-400">🎯 {historico.length} avaliações</p>
+                {historico.length > 1 && (
+                  <p className="text-xs text-slate-500">Desde {formatarData(historico[0].data_avaliacao)}</p>
+                )}
+              </div>
+              {refId && (
+                <Badge className="ml-auto bg-emerald-500/20 text-emerald-400">
+                  <Gift className="h-3 w-3 mr-1" />
+                  Convidado
+                </Badge>
+              )}
+            </div>
+
+            {/* Métricas com histórico clicável */}
+            <div className="space-y-3">
+              <MetricaComHistorico
+                label="⚖️ Peso"
+                campo="peso"
+                valor={avaliacao.peso}
+                unit="kg"
+                icon={Scale}
+                historico={historico}
+                expandida={metricasExpandidas.peso}
+                onToggle={() => toggleMetrica('peso')}
+                evolucao={getEvolucao('peso')}
+                isInvertido={false}
+              />
+
+              <MetricaComHistorico
+                label="🔥 % Gordura"
+                campo="percentual_gordura"
+                valor={avaliacao.percentual_gordura}
+                unit="%"
+                icon={Droplet}
+                historico={historico}
+                expandida={metricasExpandidas.percentual_gordura}
+                onToggle={() => toggleMetrica('percentual_gordura')}
+                evolucao={getEvolucao('percentual_gordura')}
+                isInvertido={true}
+              />
+
+              <MetricaComHistorico
+                label="💪 Massa Muscular"
+                campo="massa_muscular"
+                valor={avaliacao.massa_muscular}
+                unit="kg"
+                icon={Activity}
+                historico={historico}
+                expandida={metricasExpandidas.massa_muscular}
+                onToggle={() => toggleMetrica('massa_muscular')}
+                evolucao={getEvolucao('massa_muscular')}
+                isInvertido={false}
+              />
+
+              <MetricaComHistorico
+                label="📊 IMC"
+                campo="imc"
+                valor={avaliacao.imc}
+                unit=""
+                icon={Target}
+                historico={historico}
+                expandida={metricasExpandidas.imc}
+                onToggle={() => toggleMetrica('imc')}
+                evolucao={getEvolucao('imc')}
+                isInvertido={true}
+              />
+
+              <MetricaComHistorico
+                label="🫀 Gordura Visceral"
+                campo="viscerais"
+                valor={avaliacao.viscerais}
+                unit=""
+                icon={Heart}
+                historico={historico}
+                expandida={metricasExpandidas.viscerais}
+                onToggle={() => toggleMetrica('viscerais')}
+                evolucao={getEvolucao('viscerais')}
+                isInvertido={true}
+              />
+
+              <MetricaComHistorico
+                label="⚡ Metabolismo"
+                campo="metabolismo_basal"
+                valor={avaliacao.metabolismo_basal}
+                unit="kcal"
+                icon={Zap}
+                historico={historico}
+                expandida={metricasExpandidas.metabolismo_basal}
+                onToggle={() => toggleMetrica('metabolismo_basal')}
+                evolucao={getEvolucao('metabolismo_basal')}
+                isInvertido={false}
+              />
+
+              <MetricaComHistorico
+                label="🧬 Idade Corporal"
+                campo="idade_metabolica"
+                valor={avaliacao.idade_metabolica}
+                unit="anos"
+                icon={Brain}
+                historico={historico}
+                expandida={metricasExpandidas.idade_metabolica}
+                onToggle={() => toggleMetrica('idade_metabolica')}
+                evolucao={getEvolucao('idade_metabolica')}
+                isInvertido={true}
+              />
+            </div>
+
+            {/* Botão QUERO PARTICIPAR */}
+            <div className="bg-gradient-to-r from-emerald-500/10 to-amber-500/10 p-6 rounded-xl border border-emerald-500/20 text-center">
+              <h3 className="text-white text-lg font-semibold">Quer transformar sua saúde também?</h3>
+              <Link to={refId ? `/registrar?ref=${refId}` : '/registrar'}>
+                <Button className="mt-4 bg-gradient-to-r from-emerald-500 to-amber-500 text-white gap-2 text-lg px-8 py-6">
+                  <UserPlus className="h-5 w-5" />
+                  QUERO PARTICIPAR
+                </Button>
+              </Link>
+              {refId && (
+                <p className="text-xs text-emerald-400 mt-2">💰 Quem indicou ganha R$ 125,00!</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function MetricaComHistorico({ 
+  label, campo, valor, unit, icon: Icon, 
+  historico, expandida, onToggle, 
+  evolucao, isInvertido 
+}: any) {
+  const isGood = isInvertido ? evolucao?.diferencia < 0 : evolucao?.diferencia > 0;
+
+  return (
+    <div className="bg-slate-700/30 rounded-lg border border-slate-600 overflow-hidden">
+      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/50" onClick={onToggle}>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-emerald-500/10">
+            <Icon className="h-4 w-4 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">{label}</p>
+            <p className="text-lg font-bold text-white">{valor?.toFixed(1) || '-'} {unit}</p>
+          </div>
+        </div>
+        {historico.length > 1 && (
+          <div className="flex items-center gap-2">
+            {evolucao && (
+              <Badge className={cn(
+                "text-xs",
+                isGood ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+              )}>
+                {isGood ? '↑' : '↓'} {Math.abs(evolucao.percentual).toFixed(1)}%
+              </Badge>
+            )}
+            <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", expandida && "rotate-180")} />
+          </div>
+        )}
+      </div>
+
+      {expandida && historico.length > 1 && (
+        <div className="p-4 pt-0 border-t border-slate-600/50">
+          <div className="bg-slate-800/30 p-3 rounded-lg mb-2">
+            <p className="text-xs text-slate-400">Evolução: {evolucao?.primeiro.toFixed(1)} → {evolucao?.ultimo.toFixed(1)} {unit}</p>
+            <Badge className={cn("text-xs mt-1", isGood ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400")}>
+              {isGood ? '↑' : '↓'} {Math.abs(evolucao?.diferencia || 0).toFixed(1)} {unit}
+            </Badge>
+          </div>
+          {historico.map((item: Record<string, any> & { id?: string | number; data_avaliacao?: string | null | undefined }, idx: number) => (
+            <div key={item.id} className={cn(
+              "flex items-center justify-between p-2 rounded",
+              idx === historico.length - 1 ? "bg-emerald-500/10 border border-emerald-500/30" : "bg-slate-700/20"
+            )}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">{idx + 1}ª</span>
+                <span className="text-xs text-slate-400">{formatarData(item.data_avaliacao)}</span>
+                {idx === historico.length - 1 && (
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Atual</Badge>
+                )}
+              </div>
+              <span className="text-sm font-medium text-white">
+                {typeof item[campo] === 'number' ? item[campo].toFixed(1) : item[campo]} {unit}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function formatarData(data: string | null | undefined): string {
+  if (!data) {
+    return 'Data não informada';
+  }
+
+  const dataConvertida = new Date(data);
+
+  if (Number.isNaN(dataConvertida.getTime())) {
+    return 'Data inválida';
+  }
+
+  return dataConvertida.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}

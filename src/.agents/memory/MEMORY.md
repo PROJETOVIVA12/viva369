@@ -1,0 +1,1 @@
+- [Validação segura no Shell](shell-validation.md) — nunca fechar automaticamente o terminal após comandos de correção ou validação.

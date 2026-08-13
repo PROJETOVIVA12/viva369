@@ -1,0 +1,17 @@
+# Configuração do Replit para o VIVA369
+run = "cd /home/runner/workspace/viva369 && npm run dev -- --host 0.0.0.0 --port 5173"
+entrypoint = "/home/runner/workspace/viva369/src/main.tsx"
+language = "typescript"
+
+[nix]
+channel = "stable"
+
+[env]
+PORT = "5173"
+
+[deployment]
+run = ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+
+[serve]
+command = "npm run dev"
+publicDir = "dist"

@@ -1,0 +1,213 @@
+import { supabase } from '@/lib/supabase';
+import React, { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import {
+  Users, UserPlus, Send, CheckCircle, X,
+  Loader2, Phone, Mail, Share2, Copy,
+  Gift, Award, Sparkles, Target, Users2
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
+
+interface Amigo {
+  nome: string;
+  telefone: string;
+}
+
+export default function DesafiarAmigosPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [amigos, setAmigos] = useState<Amigo[]>([{ nome: '', telefone: '' }]);
+  const [loading, setLoading] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const [mensagem, setMensagem] = useState('');
+
+  const adicionarAmigo = () => {
+    if (amigos.length < 10) {
+      setAmigos([...amigos, { nome: '', telefone: '' }]);
+    }
+  };
+
+  const removerAmigo = (index: number) => {
+    if (amigos.length > 1) {
+      setAmigos(amigos.filter((_, i) => i !== index));
+    }
+  };
+
+  const atualizarAmigo = (index: number, campo: keyof Amigo, valor: string) => {
+    const novos = [...amigos];
+    novos[index][campo] = valor;
+    setAmigos(novos);
+  };
+
+  const enviarDesafio = async () => {
+    const invalidos = amigos.filter(a => !a.nome || !a.telefone);
+    if (invalidos.length > 0) {
+      alert('Preencha o nome e telefone de todos os amigos');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Link do desafio com ref
+      const link = `${window.location.origin}/anamnese-adesao?ref=${user?.id}&desafio=amigo`;
+      
+      // Mensagem personalizada
+      const mensagemDesafio = `🚀 *DESAFIO VIVA369 - ${user?.user_metadata?.nome || 'Um amigo'} te desafiou!*\n\n`
+        + `🌟 ${user?.user_metadata?.nome || 'Alguém'} está transformando a vida no VIVA369 e te convida para fazer parte!\n\n`
+        + `🎯 *O que você vai ganhar?*\n`
+        + `✅ Transformação física e mental\n`
+        + `✅ Acompanhamento personalizado\n`
+        + `✅ Comunidade de apoio\n`
+        + `✅ Resultados reais em 90 dias\n\n`
+        + `🔗 *Aceite o desafio:*\n`
+        + `${link}\n\n`
+        + `💚 VIVA369 - Sua jornada de saúde começa aqui!`;
+
+      // Enviar para cada amigo via WhatsApp
+      for (const amigo of amigos) {
+        const telefone = amigo.telefone.replace(/\D/g, '');
+        const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagemDesafio)}`;
+        window.open(url, '_blank');
+        // Pequeno delay para não abrir muitos ao mesmo tempo
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      setEnviado(true);
+      setMensagem('✅ Desafios enviados para todos os amigos!');
+      
+      // Registrar no banco
+      await supabase.from('desafios_enviados').insert({
+        usuario_id: user?.id,
+        amigos: amigos,
+        tipo: 'amigos'
+      });
+
+    } catch (error) {
+      console.error('Erro ao enviar desafios:', error);
+      setMensagem('❌ Erro ao enviar desafios. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-500 p-6">
+        <div className="relative">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Users className="h-6 w-6" />
+            Desafiar Amigos
+          </h1>
+          <p className="text-white/80 text-sm">
+            Desafie até 10 amigos para transformarem suas vidas com você!
+          </p>
+        </div>
+      </div>
+
+      {mensagem && (
+        <Alert className={cn(
+          mensagem.includes('✅') ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'
+        )}>
+          <AlertDescription className={cn(
+            mensagem.includes('✅') ? 'text-emerald-400' : 'text-red-400'
+          )}>
+            {mensagem}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-emerald-400" />
+            Seus Amigos ({amigos.length}/10)
+          </CardTitle>
+          <CardDescription className="text-slate-400">
+            Adicione o nome e WhatsApp de cada amigo que você quer desafiar
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {amigos.map((amigo, index) => (
+            <div key={index} className="flex gap-3 items-start bg-slate-700/30 p-3 rounded-lg">
+              <div className="flex-1 grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-slate-400 text-xs">Nome</Label>
+                  <Input
+                    value={amigo.nome}
+                    onChange={(e) => atualizarAmigo(index, 'nome', e.target.value)}
+                    placeholder="Nome do amigo"
+                    className="bg-slate-700 border-slate-600 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-slate-400 text-xs">WhatsApp</Label>
+                  <Input
+                    value={amigo.telefone}
+                    onChange={(e) => atualizarAmigo(index, 'telefone', e.target.value)}
+                    placeholder="(11) 99999-9999"
+                    className="bg-slate-700 border-slate-600 text-white text-sm"
+                  />
+                </div>
+              </div>
+              {amigos.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10 mt-4"
+                  onClick={() => removerAmigo(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </CardContent>
+        <CardFooter className="flex flex-col gap-3 border-t border-slate-700 pt-4">
+          <Button
+            variant="outline"
+            className="w-full border-slate-600 text-slate-400 hover:text-white gap-2"
+            onClick={adicionarAmigo}
+            disabled={amigos.length >= 10}
+          >
+            <UserPlus className="h-4 w-4" />
+            Adicionar outro amigo ({amigos.length}/10)
+          </Button>
+          <Button
+            className="w-full bg-gradient-to-r from-emerald-500 to-amber-500 text-white gap-2"
+            onClick={enviarDesafio}
+            disabled={loading || enviado}
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            {loading ? 'Enviando...' : 'Desafiar Amigos'}
+          </Button>
+        </CardFooter>
+      </Card>
+
+      {/* Bônus */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3 text-emerald-400">
+            <Gift className="h-5 w-5" />
+            <div>
+              <p className="text-sm font-medium">Cada amigo que aceitar o desafio vale <strong>R$ 125,00</strong> para você!</p>
+              <p className="text-xs text-slate-500">Bônus liberado quando o amigo concluir a adesão</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

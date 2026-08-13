@@ -1,0 +1,534 @@
+import React, { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Dumbbell, Home, Building2, Footprints, Bike,
+  Clock, Flame, Target, CheckCircle, Play,
+  Calendar, Award, Users, Share2,
+  Youtube, Sparkles, Zap, Heart, Activity,
+  ArrowRight, ChevronDown, ChevronUp,
+  Timer, BikeIcon,
+  Brain
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { cn } from '@/lib/utils';
+
+// ============================================
+// TIPOS DE TREINO
+// ============================================
+
+const TIPOS_TREINO = {
+  emCasa: {
+    id: 'emCasa',
+    nome: '🏠 Em Casa',
+    descricao: 'Treinos sem equipamento, apenas com o peso do corpo',
+    icone: Home,
+    cor: 'from-emerald-500 to-green-500'
+  },
+  academia: {
+    id: 'academia',
+    nome: '🏋️ Academia',
+    descricao: 'Treinos com equipamentos e pesos',
+    icone: Building2,
+    cor: 'from-blue-500 to-cyan-500'
+  },
+  caminhada: {
+    id: 'caminhada',
+    nome: '🚶 Caminhada',
+    descricao: 'Caminhadas para todos os níveis',
+    icone: Footprints,
+    cor: 'from-yellow-500 to-orange-500'
+  },
+  pedalada: {
+    id: 'pedalada',
+    nome: '🚴 Pedalada',
+    descricao: 'Treinos de bike para todos os níveis',
+    icone: Bike,
+    cor: 'from-purple-500 to-pink-500'
+  }
+};
+
+// ============================================
+// CONOGRAMA DE TREINOS
+// ============================================
+
+const CONOGRAMA_TREINOS = {
+  emCasa: {
+    nome: 'Treino em Casa',
+    descricao: 'Treinos completos sem equipamento',
+    nivel: 'Iniciante a Avançado',
+    duracao: '30-45 min',
+    calorias: '200-400 kcal',
+    dias: [
+      {
+        dia: 'Segunda',
+        titulo: '🏃 Treino A - Corpo Inteiro',
+        exercicios: [
+          'Agachamento livre - 4x15',
+          'Flexão de braços - 3x12',
+          'Prancha - 3x45s',
+          'Afundo - 3x12 cada perna',
+          'Elevação de quadril - 3x15'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Terça',
+        titulo: '🏋️ Treino B - Superior',
+        exercicios: [
+          'Flexão diamante - 3x10',
+          'Tríceps no banco - 3x12',
+          'Remada invertida - 3x10',
+          'Prancha lateral - 3x30s cada',
+          'Elevação lateral - 3x12'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Quarta',
+        titulo: '🦵 Treino C - Inferior',
+        exercicios: [
+          'Agachamento sumô - 4x15',
+          'Afundo com salto - 3x10',
+          'Elevação de panturrilha - 4x15',
+          'Agachamento búlgaro - 3x10',
+          'Ponte unilateral - 3x12'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Quinta',
+        titulo: '🔥 Treino D - HIIT',
+        exercicios: [
+          'Jumping jack - 30s',
+          'Burpee - 30s',
+          'Corrida estacionária - 30s',
+          'Agachamento com salto - 30s',
+          'Prancha com toque - 30s',
+          'Descanso - 15s (repetir 4x)'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Sexta',
+        titulo: '💪 Treino E - Core',
+        exercicios: [
+          'Prancha - 3x60s',
+          'Abdominal remador - 3x12',
+          'Prancha lateral - 3x45s',
+          'Bicicleta no ar - 3x15',
+          'Elevação de pernas - 3x12'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      }
+    ]
+  },
+  academia: {
+    nome: 'Treino na Academia',
+    descricao: 'Treinos com equipamentos e pesos',
+    nivel: 'Intermediário a Avançado',
+    duracao: '45-60 min',
+    calorias: '300-500 kcal',
+    dias: [
+      {
+        dia: 'Segunda',
+        titulo: '🏋️ Superior (Peito e Tríceps)',
+        exercicios: [
+          'Supino reto - 4x8-10',
+          'Crucifixo - 3x12',
+          'Supino inclinado - 3x10',
+          'Tríceps corda - 3x12',
+          'Tríceps francês - 3x10'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Terça',
+        titulo: '🏋️ Superior (Costas e Bíceps)',
+        exercicios: [
+          'Puxada frontal - 4x10',
+          'Remada curvada - 3x12',
+          'Pulldown - 3x10',
+          'Rosca direta - 3x12',
+          'Rosca martelo - 3x10'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Quarta',
+        titulo: '🦵 Inferior (Quadríceps e Glúteos)',
+        exercicios: [
+          'Agachamento livre - 4x10',
+          'Leg press - 3x12',
+          'Cadeira extensora - 3x15',
+          'Glúteo no cabo - 3x12',
+          'Agachamento sumô - 3x10'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Quinta',
+        titulo: '🦵 Inferior (Posterior e Panturrilha)',
+        exercicios: [
+          'Mesa flexora - 4x12',
+          'Stiff - 3x10',
+          'Panturrilha em pé - 4x15',
+          'Panturrilha sentado - 3x15',
+          'Agachamento búlgaro - 3x10'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Sexta',
+        titulo: '💪 Corpo Inteiro',
+        exercicios: [
+          'Levantamento terra - 4x8',
+          'Desenvolvimento - 3x10',
+          'Puxada frontal - 3x12',
+          'Agachamento - 3x12',
+          'Tríceps pulley - 3x12'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      }
+    ]
+  },
+  caminhada: {
+    nome: 'Caminhada',
+    descricao: 'Caminhadas para todos os níveis',
+    nivel: 'Iniciante a Intermediário',
+    duracao: '20-60 min',
+    calorias: '150-300 kcal',
+    dias: [
+      {
+        dia: 'Segunda',
+        titulo: '🚶 Caminhada Leve',
+        exercicios: [
+          '20 min de caminhada',
+          'Pace: 6-7 km/h',
+          'Terreno plano'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Terça',
+        titulo: '🚶 Caminhada Moderada',
+        exercicios: [
+          '30 min de caminhada',
+          'Pace: 5-6 km/h',
+          'Terreno com pequenas subidas'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Quarta',
+        titulo: '🚶 Caminhada Intervalada',
+        exercicios: [
+          '5 min aquecimento',
+          '20 min (1min rápido / 2min leve)',
+          '5 min desaquecimento'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Quinta',
+        titulo: '🚶 Caminhada Rápida',
+        exercicios: [
+          '40 min de caminhada',
+          'Pace: 5-6 km/h',
+          'Terreno variado'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Sexta',
+        titulo: '🚶 Caminhada Longa',
+        exercicios: [
+          '50-60 min de caminhada',
+          'Pace: 6 km/h',
+          'Terreno plano'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      }
+    ]
+  },
+  pedalada: {
+    nome: 'Pedalada',
+    descricao: 'Treinos de bike para todos os níveis',
+    nivel: 'Iniciante a Avançado',
+    duracao: '30-90 min',
+    calorias: '250-500 kcal',
+    dias: [
+      {
+        dia: 'Segunda',
+        titulo: '🚴 Pedalada Leve',
+        exercicios: [
+          '30 min de pedalada',
+          'Cadência: 60-70 RPM',
+          'Terreno plano'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Terça',
+        titulo: '🚴 Pedalada Moderada',
+        exercicios: [
+          '45 min de pedalada',
+          'Cadência: 70-80 RPM',
+          'Terreno com subidas leves'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Quarta',
+        titulo: '🚴 Pedalada Intervalada',
+        exercicios: [
+          '5 min aquecimento',
+          '30 min (1min forte / 2min leve)',
+          '5 min desaquecimento'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Quinta',
+        titulo: '🚴 Pedalada Subida',
+        exercicios: [
+          '60 min de pedalada',
+          'Cadência: 70-80 RPM',
+          'Terreno com subidas longas'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      },
+      {
+        dia: 'Sexta',
+        titulo: '🚴 Pedalada Longa',
+        exercicios: [
+          '90 min de pedalada',
+          'Cadência: 60-70 RPM',
+          'Terreno variado'
+        ],
+        video: 'https://youtube.com/@wearestrongnation'
+      }
+    ]
+  }
+};
+
+// ============================================
+// COMPONENTE DE TREINO DIÁRIO
+// ============================================
+
+function TreinoDiario({ treino, dia }: { treino: any; dia: any }) {
+  const [expandido, setExpandido] = useState(false);
+
+  return (
+    <div className="bg-slate-700/20 rounded-lg border border-slate-600 overflow-hidden">
+      <div 
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-colors"
+        onClick={() => setExpandido(!expandido)}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+            <Calendar className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-white font-medium">{dia.dia}</p>
+            <p className="text-sm text-slate-400">{dia.titulo}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+            {treino.duracao}
+          </Badge>
+          <ChevronDown className={cn(
+            "h-4 w-4 text-slate-400 transition-transform",
+            expandido && "rotate-180"
+          )} />
+        </div>
+      </div>
+
+      {expandido && (
+        <div className="p-4 pt-0 border-t border-slate-600/50 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-slate-700/30 p-2 rounded-lg text-center">
+              <p className="text-xs text-slate-400">Nível</p>
+              <p className="text-sm text-white">{treino.nivel}</p>
+            </div>
+            <div className="bg-slate-700/30 p-2 rounded-lg text-center">
+              <p className="text-xs text-slate-400">Calorias</p>
+              <p className="text-sm text-white">{treino.calorias}</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-slate-400 font-medium mb-2">📋 Exercícios:</p>
+            <ul className="space-y-1">
+              {dia.exercicios.map((exercicio: string, idx: number) => (
+                <li key={idx} className="flex items-start gap-2 text-sm text-slate-300">
+                  <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                  {exercicio}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <Button 
+            variant="outline" 
+            className="w-full border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 gap-2"
+            onClick={() => window.open(dia.video, '_blank')}
+          >
+            <Youtube className="h-4 w-4 text-red-400" />
+            Ver Treino no YouTube
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// COMPONENTE PRINCIPAL
+// ============================================
+
+export default function AtividadeFisicaPage() {
+  const { user } = useAuth();
+  const [tipoSelecionado, setTipoSelecionado] = useState('emCasa');
+  const [diasCompletos, setDiasCompletos] = useState(0);
+
+  const treino = CONOGRAMA_TREINOS[tipoSelecionado as keyof typeof CONOGRAMA_TREINOS];
+  const TipoInfo = TIPOS_TREINO[tipoSelecionado as keyof typeof TIPOS_TREINO];
+  const Icon = TipoInfo?.icone || Dumbbell;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-500 p-6">
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <Activity className="h-6 w-6" />
+              Atividade Física
+            </h1>
+            <p className="text-white/80 text-sm">Transforme seu corpo com treinos completos</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Badge className="bg-white/20 text-white border-0 px-4 py-2">
+              <Calendar className="h-4 w-4 mr-2" />
+              {diasCompletos} treinos concluídos
+            </Badge>
+            <Button 
+              variant="outline" 
+              className="bg-white/10 text-white hover:bg-white/20 border-0"
+              onClick={() => window.open('https://youtube.com/@wearestrongnation', '_blank')}
+            >
+              <Youtube className="h-4 w-4 mr-2" />
+              Canal Oficial
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tipos de Treino */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {Object.entries(TIPOS_TREINO).map(([key, tipo]) => {
+          const IconTipo = tipo.icone;
+          const isActive = tipoSelecionado === key;
+          return (
+            <button
+              key={key}
+              className={cn(
+                "flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-300",
+                isActive
+                  ? "bg-gradient-to-r from-emerald-500/20 to-amber-500/20 text-emerald-400 border border-emerald-500/30"
+                  : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700"
+              )}
+              onClick={() => setTipoSelecionado(key)}
+            >
+              <IconTipo className="h-5 w-5" />
+              <span className="text-xs font-medium">{tipo.nome}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Conograma do Treino */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Icon className="h-5 w-5 text-emerald-400" />
+                {treino.nome}
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                {treino.descricao} • {treino.nivel}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                <Clock className="h-3 w-3 mr-1" />
+                {treino.duracao}
+              </Badge>
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                <Flame className="h-3 w-3 mr-1" />
+                {treino.calorias}
+              </Badge>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {treino.dias.map((dia, idx) => (
+            <TreinoDiario key={idx} treino={treino} dia={dia} />
+          ))}
+        </CardContent>
+        <CardFooter className="border-t border-slate-700 pt-4 flex flex-col gap-3">
+          <Button 
+            className="w-full bg-gradient-to-r from-emerald-500 to-amber-500 text-white gap-2"
+            onClick={() => setDiasCompletos(prev => Math.min(prev + 1, 30))}
+          >
+            <CheckCircle className="h-4 w-4" />
+            Marcar Treino Concluído
+          </Button>
+          <Button 
+            variant="outline" 
+            className="w-full border-slate-600 text-slate-400 hover:text-white gap-2"
+            onClick={() => window.open('https://youtube.com/@wearestrongnation', '_blank')}
+          >
+            <Youtube className="h-4 w-4 text-red-400" />
+            Ver todos os treinos no YouTube
+          </Button>
+        </CardFooter>
+      </Card>
+
+      {/* Benefícios */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-emerald-400" />
+            Benefícios da Atividade Física
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { icon: Heart, label: 'Saúde Cardiovascular', cor: 'text-red-400' },
+              { icon: Flame, label: 'Queima de Gordura', cor: 'text-orange-400' },
+              { icon: Brain, label: 'Saúde Mental', cor: 'text-purple-400' },
+              { icon: Zap, label: 'Mais Energia', cor: 'text-yellow-400' }
+            ].map((item, idx) => {
+              const IconItem = item.icon;
+              return (
+                <div key={idx} className="text-center p-3 bg-slate-700/30 rounded-lg">
+                  <IconItem className={cn("h-6 w-6 mx-auto mb-2", item.cor)} />
+                  <p className="text-xs text-slate-300">{item.label}</p>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

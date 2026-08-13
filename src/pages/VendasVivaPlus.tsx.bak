@@ -1,0 +1,443 @@
+import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  ChevronRight, Star, Users, Shield, Zap, Heart, Brain, Apple,
+  Droplets, Footprints, Moon, Trophy, Check, Bell, ArrowRight, Play
+} from 'lucide-react';
+
+// ─── Contador Regressivo ─────────────────────────────────────────────────────
+function useContador() {
+  const alvo = useRef(new Date());
+  // Oferta expira em 48h a partir da primeira visita
+  useEffect(() => {
+    const salvo = localStorage.getItem('viva369_oferta_expira');
+    if (salvo) {
+      alvo.current = new Date(salvo);
+    } else {
+      const d = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      localStorage.setItem('viva369_oferta_expira', d.toISOString());
+      alvo.current = d;
+    }
+  }, []);
+
+  const calcular = () => {
+    const diff = Math.max(0, alvo.current.getTime() - Date.now());
+    return {
+      h: Math.floor(diff / 3600000),
+      m: Math.floor((diff % 3600000) / 60000),
+      s: Math.floor((diff % 60000) / 1000),
+    };
+  };
+
+  const [tempo, setTempo] = useState(calcular);
+  useEffect(() => {
+    const id = setInterval(() => setTempo(calcular()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return tempo;
+}
+
+// ─── Notificação de Entradas ao Vivo ─────────────────────────────────────────
+const NOMES = ['Ana L.', 'Carlos M.', 'Fernanda S.', 'João P.', 'Mariana C.', 'Rafael T.', 'Larissa B.', 'Diego F.'];
+function NotificacaoVivo() {
+  const [visivel, setVisivel] = useState(false);
+  const [nome, setNome] = useState('');
+  const [vagas, setVagas] = useState(247);
+
+  useEffect(() => {
+    const mostrar = () => {
+      setNome(NOMES[Math.floor(Math.random() * NOMES.length)]);
+      setVagas(v => Math.max(1, v - 1));
+      setVisivel(true);
+      setTimeout(() => setVisivel(false), 4000);
+    };
+    const id = setInterval(mostrar, 7000 + Math.random() * 5000);
+    setTimeout(mostrar, 3000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!visivel) return null;
+  return (
+    <div className="fixed bottom-6 left-4 z-50 animate-in slide-in-from-left-4 duration-300">
+      <div className="flex items-center gap-3 bg-zinc-900 border border-green-500/40 rounded-xl px-4 py-3 shadow-2xl max-w-xs">
+        <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+          <Users className="w-4 h-4 text-green-400" />
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-white">{nome} acabou de entrar!</p>
+          <p className="text-xs text-green-400">Restam apenas <strong>{vagas}</strong> vagas</p>
+        </div>
+        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Componente Principal ─────────────────────────────────────────────────────
+export default function VendasVivaPlus() {
+  const { h, m, s } = useContador();
+  const vagasRestantes = 47;
+
+  const PILARES = [
+    { icon: Droplets, cor: '#3b82f6', titulo: 'Hidratação', desc: 'Beba a quantidade certa de água para turbinar seu metabolismo e clareza mental.' },
+    { icon: Apple, cor: '#f59e0b', titulo: 'Nutrição', desc: 'Aprenda a montar pratos que nutrem e satisfazem, sem sofrimento ou privação.' },
+    { icon: Footprints, cor: '#10b981', titulo: 'Movimento', desc: 'Exercícios adaptados ao seu nível, para qualquer pessoa começar agora mesmo.' },
+    { icon: Moon, cor: '#8b5cf6', titulo: 'Sono', desc: 'Durma melhor e acorde com mais energia usando técnicas comprovadas.' },
+    { icon: Brain, cor: '#ec4899', titulo: 'Mentalidade', desc: 'Reprograme crenças limitantes e desenvolva a mentalidade de uma pessoa saudável.' },
+    { icon: Zap, cor: '#f97316', titulo: 'Energia', desc: 'Aumente seu pique natural sem depender de estimulantes ou suplementos caros.' },
+  ];
+
+  const FASES = [
+    { fase: '1', nome: 'Fundação', cor: '#22c55e', bgCor: 'bg-green-900/20 border-green-700/30', dias: '1–30', desc: 'Estabelece os hábitos base: hidratação, sono regulado e primeiros movimentos.' },
+    { fase: '2', nome: 'Combustão', cor: '#ef4444', bgCor: 'bg-red-900/20 border-red-700/30', dias: '31–60', desc: 'Acelera resultados com nutrição estratégica e treinos progressivos.' },
+    { fase: '3', nome: 'Refinamento', cor: '#f59e0b', bgCor: 'bg-amber-900/20 border-amber-700/30', dias: '61–75', desc: 'Ajusta e personaliza seu plano de acordo com os resultados já obtidos.' },
+    { fase: '4', nome: 'Transformação', cor: '#a855f7', bgCor: 'bg-purple-900/20 border-purple-700/30', dias: '76–90', desc: 'Consolida a nova identidade: você não segue mais um programa, você é saudável.' },
+  ];
+
+  const DEPOIMENTOS = [
+    { nome: 'Ana Carolina, 34', cidade: 'Feira de Santana - BA', texto: 'Perdi 12kg em 90 dias mas o mais incrível foi recuperar minha energia. Hoje acordo sem precisar de café!', estrelas: 5, resultado: '-12kg' },
+    { nome: 'Roberto Silva, 41', cidade: 'Salvador - BA', texto: 'Era cético mas resolvi tentar. No dia 45 minha esposa disse que eu parecia 10 anos mais novo. Resultados reais!', estrelas: 5, resultado: '-9kg' },
+    { nome: 'Patrícia Matos, 28', cidade: 'Feira de Santana - BA', texto: 'Comecei a dormir bem pela primeira vez em anos. A mudança na mentalidade foi o que mais me surpreendeu.', estrelas: 5, resultado: '+energia' },
+    { nome: 'Marcos Andrade, 52', cidade: 'Alagoinhas - BA', texto: 'Meu médico ficou impressionado com meus exames após os 90 dias. Método sério e com resultado comprovado.', estrelas: 5, resultado: 'Saúde ✓' },
+  ];
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white overflow-x-hidden">
+      <NotificacaoVivo />
+
+      {/* ── NAVBAR ─────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-sm border-b border-zinc-800/50">
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-green-400" />
+            </div>
+            <span className="font-black text-lg text-white">Viva<span className="text-green-400">369</span></span>
+          </div>
+          <a href="https://payment-link-v3.ton.com.br/pl_aLlyO8bqA305RdwSDpiLMpNYvJPgjKw7" target="_blank" rel="noopener noreferrer">
+            <Button size="sm" className="bg-green-500 hover:bg-green-400 text-black font-bold text-xs">
+              Garantir Vaga →
+            </Button>
+          </a>
+        </div>
+      </nav>
+
+      {/* ── HERO ───────────────────────────────────────────────── */}
+      <section className="relative pt-16 pb-20 px-4 text-center overflow-hidden">
+        {/* Fundo gradiente */}
+        <div className="absolute inset-0 bg-gradient-to-b from-green-950/30 via-zinc-950 to-zinc-950 pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-green-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-3xl mx-auto">
+          {/* Robô/Mascote SVG */}
+          <div className="mx-auto mb-8 w-32 h-32 flex items-center justify-center">
+            <svg viewBox="0 0 120 120" className="w-32 h-32 drop-shadow-[0_0_30px_rgba(34,197,94,0.4)]" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Antena */}
+              <line x1="60" y1="8" x2="60" y2="20" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round"/>
+              <circle cx="60" cy="6" r="4" fill="#22c55e" className="[animation:pulse_1.5s_ease-in-out_infinite]"/>
+              {/* Cabeça */}
+              <rect x="30" y="20" width="60" height="45" rx="12" fill="#1a2e1a" stroke="#22c55e" strokeWidth="2"/>
+              {/* Olhos */}
+              <rect x="40" y="32" width="14" height="12" rx="4" fill="#22c55e" opacity="0.9"/>
+              <rect x="66" y="32" width="14" height="12" rx="4" fill="#22c55e" opacity="0.9"/>
+              {/* Pupilas */}
+              <circle cx="47" cy="38" r="3" fill="#052e16"/>
+              <circle cx="73" cy="38" r="3" fill="#052e16"/>
+              {/* Boca sorrindo */}
+              <path d="M46 52 Q60 60 74 52" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              {/* Pescoço */}
+              <rect x="54" y="65" width="12" height="8" rx="2" fill="#1a2e1a" stroke="#22c55e" strokeWidth="1.5"/>
+              {/* Corpo */}
+              <rect x="24" y="73" width="72" height="38" rx="10" fill="#1a2e1a" stroke="#22c55e" strokeWidth="2"/>
+              {/* Emblema no peito */}
+              <circle cx="60" cy="89" r="10" fill="#052e16" stroke="#22c55e" strokeWidth="1.5"/>
+              <text x="60" y="93" textAnchor="middle" fill="#22c55e" fontSize="10" fontWeight="bold">V+</text>
+              {/* Braço esquerdo */}
+              <rect x="6" y="75" width="18" height="10" rx="5" fill="#1a2e1a" stroke="#22c55e" strokeWidth="1.5"/>
+              {/* Braço direito */}
+              <rect x="96" y="75" width="18" height="10" rx="5" fill="#1a2e1a" stroke="#22c55e" strokeWidth="1.5"/>
+              {/* Pernas */}
+              <rect x="36" y="111" width="18" height="9" rx="4" fill="#1a2e1a" stroke="#22c55e" strokeWidth="1.5"/>
+              <rect x="66" y="111" width="18" height="9" rx="4" fill="#1a2e1a" stroke="#22c55e" strokeWidth="1.5"/>
+            </svg>
+          </div>
+
+          <Badge className="mb-6 bg-green-900/40 text-green-400 border border-green-700/50 text-sm px-4 py-1.5 font-semibold">
+            🚀 Lançamento Oficial — Apenas {vagasRestantes} vagas
+          </Badge>
+
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight mb-6">
+            Transforme sua saúde em{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
+              90 dias
+            </span>
+          </h1>
+
+          <p className="text-lg sm:text-xl text-zinc-300 mb-4 leading-relaxed max-w-2xl mx-auto">
+            O método Viva369 combina os <strong className="text-white">6 pilares da saúde</strong> em uma
+            jornada guiada, com comunidade, lives exclusivas e acompanhamento real.
+          </p>
+          <p className="text-sm text-zinc-500 mb-10">Sem dietas radicais. Sem academias caras. Sem desculpas.</p>
+
+          {/* CTA Principal */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+            <a
+              href="https://payment-link-v3.ton.com.br/pl_aLlyO8bqA305RdwSDpiLMpNYvJPgjKw7"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex"
+            >
+              <Button size="lg" className="bg-green-500 hover:bg-green-400 text-black font-black text-lg px-8 h-14 shadow-lg shadow-green-500/25 w-full sm:w-auto">
+                QUERO TRANSFORMAR MINHA SAÚDE →
+              </Button>
+            </a>
+          </div>
+
+          <p className="text-xs text-zinc-500">
+            🔒 Pagamento 100% seguro · Acesso imediato após confirmação
+          </p>
+        </div>
+      </section>
+
+      {/* ── CONTADOR + VAGAS ───────────────────────────────────── */}
+      <section className="bg-zinc-900 border-y border-zinc-800 py-8 px-4">
+        <div className="max-w-3xl mx-auto">
+          <p className="text-center text-sm text-zinc-400 mb-4 font-medium uppercase tracking-widest">⏰ Oferta de Lançamento Expira Em:</p>
+          <div className="flex justify-center gap-3 mb-6">
+            {[
+              { v: pad(h), label: 'Horas' },
+              { v: pad(m), label: 'Min' },
+              { v: pad(s), label: 'Seg' },
+            ].map(({ v, label }) => (
+              <div key={label} className="flex flex-col items-center">
+                <div className="bg-green-950 border border-green-700/50 rounded-xl w-16 h-16 flex items-center justify-center">
+                  <span className="text-3xl font-black text-green-400 tabular-nums">{v}</span>
+                </div>
+                <span className="text-xs text-zinc-500 mt-1">{label}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-center">
+            <div>
+              <p className="text-3xl font-black text-white">300</p>
+              <p className="text-xs text-zinc-400">Vagas totais</p>
+            </div>
+            <div className="w-px h-10 bg-zinc-700 hidden sm:block" />
+            <div>
+              <p className="text-3xl font-black text-red-400">{vagasRestantes}</p>
+              <p className="text-xs text-zinc-400">Restantes</p>
+            </div>
+            <div className="w-px h-10 bg-zinc-700 hidden sm:block" />
+            <div>
+              <p className="text-3xl font-black text-green-400">R$ 250</p>
+              <p className="text-xs text-zinc-400">Preço de lançamento</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6 PILARES ──────────────────────────────────────────── */}
+      <section className="py-20 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge className="bg-green-900/30 text-green-400 border-green-700/30 mb-4">O Método</Badge>
+            <h2 className="text-3xl sm:text-4xl font-black mb-4">
+              Os <span className="text-green-400">6 Pilares</span> da Saúde Completa
+            </h2>
+            <p className="text-zinc-400 max-w-xl mx-auto">
+              Não existe saúde verdadeira cuidando apenas de um aspecto. O Viva369 atua nos 6 fundamentos.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {PILARES.map((p, i) => (
+              <Card key={i} className="bg-zinc-900 border-zinc-800 hover:border-zinc-600 transition-colors">
+                <CardContent className="pt-6">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: p.cor + '20' }}>
+                    <p.icon className="w-5 h-5" style={{ color: p.cor }} />
+                  </div>
+                  <h3 className="font-bold text-white mb-2">{p.titulo}</h3>
+                  <p className="text-sm text-zinc-400 leading-relaxed">{p.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4 FASES DA JORNADA ─────────────────────────────────── */}
+      <section className="py-20 px-4 bg-zinc-900/50">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge className="bg-green-900/30 text-green-400 border-green-700/30 mb-4">A Jornada</Badge>
+            <h2 className="text-3xl sm:text-4xl font-black mb-4">
+              <span className="text-green-400">4 Fases</span> de Transformação
+            </h2>
+            <p className="text-zinc-400">Cada fase foi desenhada para maximizar seus resultados com segurança.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {FASES.map((f) => (
+              <div key={f.fase} className={`rounded-2xl border p-6 ${f.bgCor}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm text-white" style={{ backgroundColor: f.cor }}>
+                    {f.fase}
+                  </div>
+                  <div>
+                    <p className="font-bold text-white">{f.nome}</p>
+                    <p className="text-xs text-zinc-400">Dias {f.dias}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-zinc-300 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── DEPOIMENTOS ────────────────────────────────────────── */}
+      <section className="py-20 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge className="bg-green-900/30 text-green-400 border-green-700/30 mb-4">Resultados Reais</Badge>
+            <h2 className="text-3xl sm:text-4xl font-black mb-4">
+              Quem já transformou a <span className="text-green-400">própria vida</span>
+            </h2>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {DEPOIMENTOS.map((d, i) => (
+              <Card key={i} className="bg-zinc-900 border-zinc-800">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-green-900/40 flex items-center justify-center font-bold text-green-400 shrink-0">
+                      {d.nome[0]}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-white text-sm">{d.nome}</p>
+                        <Badge className="bg-green-900/40 text-green-400 border-green-700/30 text-xs">{d.resultado}</Badge>
+                      </div>
+                      <p className="text-xs text-zinc-500">{d.cidade}</p>
+                      <div className="flex gap-0.5 mt-1">
+                        {Array.from({ length: d.estrelas }).map((_, j) => (
+                          <Star key={j} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-zinc-300 italic leading-relaxed">"{d.texto}"</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── O QUE ESTÁ INCLUSO ─────────────────────────────────── */}
+      <section className="py-20 px-4 bg-zinc-900/50">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-black mb-4">
+              Tudo que você recebe por <span className="text-green-400">R$ 250</span>
+            </h2>
+          </div>
+          <div className="space-y-3 mb-10">
+            {[
+              'App completo com dashboard de saúde (iOS + Android + Web)',
+              'Jornada guiada de 90 dias com os 6 pilares',
+              'Registro diário de água, passos, sono, nutrição e energia',
+              'Bioimpedância Antes × Depois com acompanhamento',
+              'Lives exclusivas toda semana com especialistas',
+              'Rede social VIVA+ para trocar experiências',
+              'Ranking e premiações mensais',
+              'Sistema de indicações com comissão de R$ 125',
+              'Suporte via WhatsApp com a equipe',
+              'Acesso vitalício às atualizações',
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+                <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check className="w-3 h-3 text-green-400" />
+                </div>
+                <p className="text-sm text-zinc-200">{item}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Preço + CTA */}
+          <div className="rounded-2xl border border-green-700/40 bg-green-950/20 p-8 text-center">
+            <p className="text-sm text-zinc-400 mb-1 uppercase tracking-widest">Acesso completo por</p>
+            <div className="mb-2">
+              <span className="text-zinc-500 line-through text-lg">R$ 497</span>
+            </div>
+            <p className="text-6xl font-black text-green-400 mb-1">R$ 250</p>
+            <p className="text-sm text-zinc-400 mb-8">Pagamento único · Acesso imediato</p>
+            <a
+              href="https://payment-link-v3.ton.com.br/pl_aLlyO8bqA305RdwSDpiLMpNYvJPgjKw7"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <Button size="lg" className="w-full bg-green-500 hover:bg-green-400 text-black font-black text-xl h-16 shadow-lg shadow-green-500/30">
+                GARANTIR MINHA VAGA AGORA →
+              </Button>
+            </a>
+            <p className="text-xs text-zinc-500 mt-4 flex items-center justify-center gap-2">
+              <Shield className="w-3 h-3" /> Pagamento 100% seguro via TON · {vagasRestantes} vagas restantes
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ────────────────────────────────────────────────── */}
+      <section className="py-16 px-4">
+        <div className="max-w-2xl mx-auto">
+          <h2 className="text-2xl font-black text-center mb-8">Dúvidas Frequentes</h2>
+          <div className="space-y-3">
+            {[
+              { p: 'Para quem é o Viva369?', r: 'Para qualquer pessoa que queira melhorar a saúde de forma sustentável, independente da idade ou condicionamento físico atual.' },
+              { p: 'Preciso de academia?', r: 'Não! Os treinos são adaptados para casa, sem equipamentos. Você pode fazer em qualquer lugar.' },
+              { p: 'Como funciona o sistema de indicações?', r: 'Ao indicar um amigo usando seu link exclusivo, você recebe automaticamente R$125 quando ele pagar. É simples assim.' },
+              { p: 'E se eu não obtiver resultados?', r: 'O método é comprovado. Mas o que sabemos é que quem segue os 90 dias sempre obtém resultados. Seu comprometimento é a única variável.' },
+            ].map((item, i) => (
+              <div key={i} className="rounded-xl bg-zinc-900 border border-zinc-800 p-4">
+                <p className="font-bold text-white mb-2 text-sm">❓ {item.p}</p>
+                <p className="text-sm text-zinc-400 leading-relaxed">{item.r}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOOTER / CTA FINAL ─────────────────────────────────── */}
+      <section className="py-20 px-4 bg-gradient-to-b from-zinc-950 to-green-950/20">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-black mb-4">
+            Sua transformação começa <span className="text-green-400">hoje</span>
+          </h2>
+          <p className="text-zinc-400 mb-8">Não espere o próximo lançamento. As vagas são limitadas e o preço vai subir.</p>
+          <a
+            href="https://payment-link-v3.ton.com.br/pl_aLlyO8bqA305RdwSDpiLMpNYvJPgjKw7"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            <Button size="lg" className="w-full sm:w-auto bg-green-500 hover:bg-green-400 text-black font-black text-xl px-10 h-16 shadow-xl shadow-green-500/30">
+              ENTRAR NO VIVA369 — R$ 250 →
+            </Button>
+          </a>
+          <p className="text-xs text-zinc-600 mt-6">
+            © 2026 Viva369 · Feira de Santana, BA · Todos os direitos reservados
+          </p>
+          <p className="text-xs text-zinc-700 mt-1">
+            Já tem conta?{' '}
+            <Link to="/login" className="text-green-600 hover:text-green-400 underline">Faça login</Link>
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+}

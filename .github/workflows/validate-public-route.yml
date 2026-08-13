@@ -1,0 +1,21 @@
+name: Validar Rota Pública
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar rota pública
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://viva369--seu-usuario.replit.app/avaliacao-publica)
+          
+          if [ $STATUS -ne 200 ]; then
+            echo "❌ Rota pública NÃO está disponível! Status: $STATUS"
+            exit 1
+          fi
+          
+          echo "✅ Rota pública OK! Status: $STATUS"

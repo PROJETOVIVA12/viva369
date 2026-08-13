@@ -1,0 +1,226 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trophy, Medal, Star, Flame, Target, Zap, Crown, Award, Loader2 } from 'lucide-react';
+
+interface Conquista {
+  id: string;
+  titulo: string;
+  descricao: string;
+  icon: string;
+  conquistado: boolean;
+  progresso: number;
+  meta: number;
+}
+
+interface RankingItem {
+  nome: string;
+  pontos: number;
+  posicao: number;
+  avatar: string;
+}
+
+const MEDALHAS: Conquista[] = [
+  { id: '1', titulo: 'Primeira Gota', descricao: 'Registre sua hidratação pela primeira vez', icon: '💧', conquistado: false, progresso: 0, meta: 1 },
+  { id: '2', titulo: 'Semana Completa', descricao: '7 dias seguidos de registro', icon: '🔥', conquistado: false, progresso: 0, meta: 7 },
+  { id: '3', titulo: 'Maratonista', descricao: 'Atinja 10.000 passos em um dia', icon: '👟', conquistado: false, progresso: 0, meta: 10000 },
+  { id: '4', titulo: 'Dorminhoco', descricao: 'Durma 8h por 7 dias seguidos', icon: '😴', conquistado: false, progresso: 0, meta: 7 },
+  { id: '5', titulo: 'Meio Caminho', descricao: 'Complete 45 dias na jornada', icon: '🌿', conquistado: false, progresso: 0, meta: 45 },
+  { id: '6', titulo: 'Transformação', descricao: 'Complete os 90 dias da jornada', icon: '🏆', conquistado: false, progresso: 0, meta: 90 },
+  { id: '7', titulo: 'Influenciador', descricao: 'Indique 5 amigos', icon: '🌟', conquistado: false, progresso: 0, meta: 5 },
+  { id: '8', titulo: 'Líder Top', descricao: 'Indique 10 amigos', icon: '👑', conquistado: false, progresso: 0, meta: 10 },
+];
+
+const DESAFIOS = [
+  { periodo: 'Diário', titulo: 'Beba 3L de água hoje', pontos: 10, icon: '💧', cor: 'text-blue-400', bgCor: 'bg-blue-900/20 border-blue-700/30' },
+  { periodo: 'Diário', titulo: 'Caminhe 8.000 passos', pontos: 15, icon: '👟', cor: 'text-green-400', bgCor: 'bg-green-900/20 border-green-700/30' },
+  { periodo: 'Semanal', titulo: '7 dias de registro completo', pontos: 100, icon: '🔥', cor: 'text-orange-400', bgCor: 'bg-orange-900/20 border-orange-700/30' },
+  { periodo: 'Semanal', titulo: 'Sono de qualidade 5x na semana', pontos: 75, icon: '😴', cor: 'text-purple-400', bgCor: 'bg-purple-900/20 border-purple-700/30' },
+  { periodo: 'Mensal', titulo: 'Indique 1 amigo este mês', pontos: 500, icon: '🤝', cor: 'text-amber-400', bgCor: 'bg-amber-900/20 border-amber-700/30' },
+  { periodo: 'Trimestral', titulo: 'Complete 90 dias da jornada', pontos: 2000, icon: '🏆', cor: 'text-yellow-400', bgCor: 'bg-yellow-900/20 border-yellow-700/30' },
+];
+
+export default function PremiacoesPage() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [diasNaJornada, setDiasNaJornada] = useState(0);
+  const [totalIndicacoes, setTotalIndicacoes] = useState(0);
+  const [pontos, setPontos] = useState(0);
+
+  useEffect(() => {
+    if (user) fetchDados();
+  }, [user]);
+
+  const fetchDados = async () => {
+    setLoading(true);
+    try {
+      const { data: perfil } = await supabase.from('perfis').select('criado_em').eq('id', user?.id).single();
+      if (perfil) {
+        const dias = Math.floor((new Date().getTime() - new Date(perfil.criado_em).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        setDiasNaJornada(Math.min(dias, 90));
+      }
+
+      const { count } = await supabase.from('perfis').select('*', { count: 'exact', head: true }).eq('lider_id', user?.id);
+      setTotalIndicacoes(count || 0);
+
+      // Pontos: dias na jornada * 10 + indicações * 500
+      const d = diasNaJornada || 1;
+      setPontos(d * 10 + (count || 0) * 500);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const conquistasComProgresso = MEDALHAS.map(m => {
+    let prog = 0;
+    if (m.id === '5' || m.id === '6') prog = diasNaJornada;
+    if (m.id === '7') prog = totalIndicacoes;
+    if (m.id === '8') prog = totalIndicacoes;
+    const conquistado = prog >= m.meta;
+    return { ...m, progresso: Math.min(prog, m.meta), conquistado };
+  });
+
+  const rankingMock: RankingItem[] = [
+    { nome: 'Ana Lima', pontos: 4250, posicao: 1, avatar: '🥇' },
+    { nome: 'Carlos Santos', pontos: 3800, posicao: 2, avatar: '🥈' },
+    { nome: 'Maria Souza', pontos: 3200, posicao: 3, avatar: '🥉' },
+    { nome: 'João Costa', pontos: 2900, posicao: 4, avatar: '4️⃣' },
+    { nome: 'Fernanda Reis', pontos: 2400, posicao: 5, avatar: '5️⃣' },
+  ];
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in">
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Premiações & Ranking</h2>
+        <p className="text-muted-foreground">Conquiste medalhas, suba no ranking e ganhe prêmios.</p>
+      </div>
+
+      {/* Seus pontos */}
+      <Card className="border-primary/30 bg-gradient-to-r from-card to-primary/5">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-muted-foreground text-sm">Seus Pontos</p>
+              <p className="text-4xl font-black text-primary">{pontos.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground mt-1">Dia {diasNaJornada} · {totalIndicacoes} indicação(ões)</p>
+            </div>
+            <Crown className="w-16 h-16 text-primary/40" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="medalhas">
+        <TabsList className="w-full">
+          <TabsTrigger value="medalhas" className="flex-1">🏅 Medalhas</TabsTrigger>
+          <TabsTrigger value="desafios" className="flex-1">🎯 Desafios</TabsTrigger>
+          <TabsTrigger value="ranking" className="flex-1">🏆 Ranking</TabsTrigger>
+        </TabsList>
+
+        {/* Medalhas */}
+        <TabsContent value="medalhas">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {conquistasComProgresso.map(c => (
+              <Card key={c.id} className={`border-border bg-card ${c.conquistado ? 'border-primary/40 bg-primary/5' : 'opacity-70'}`}>
+                <CardContent className="pt-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`text-3xl p-2 rounded-lg ${c.conquistado ? 'bg-primary/20' : 'bg-muted/50 grayscale'}`}>
+                      {c.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-sm">{c.titulo}</p>
+                        {c.conquistado && <Badge className="bg-primary/20 text-primary text-xs">✓ Conquistada</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{c.descricao}</p>
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                          <span>{c.progresso} / {c.meta}</span>
+                          <span>{Math.round((c.progresso / c.meta) * 100)}%</span>
+                        </div>
+                        <Progress value={(c.progresso / c.meta) * 100} className="h-1.5" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* Desafios */}
+        <TabsContent value="desafios">
+          <div className="space-y-3">
+            {DESAFIOS.map((d, i) => (
+              <div key={i} className={`flex items-center justify-between p-4 rounded-xl border ${d.bgCor}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{d.icon}</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{d.titulo}</p>
+                      <Badge variant="outline" className="text-xs">{d.periodo}</Badge>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`font-bold ${d.cor}`}>+{d.pontos}</p>
+                  <p className="text-xs text-muted-foreground">pontos</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* Ranking */}
+        <TabsContent value="ranking">
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-primary" /> Top 5 do Mês
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {rankingMock.map(r => (
+                  <div key={r.posicao} className={`flex items-center justify-between p-3 rounded-xl border ${
+                    r.posicao === 1 ? 'border-yellow-600/50 bg-yellow-900/10' :
+                    r.posicao === 2 ? 'border-gray-400/30 bg-gray-800/20' :
+                    r.posicao === 3 ? 'border-amber-700/40 bg-amber-900/10' :
+                    'border-border bg-background/50'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{r.avatar}</span>
+                      <div>
+                        <p className="font-medium">{r.nome}</p>
+                        <p className="text-xs text-muted-foreground">#{r.posicao} no ranking</p>
+                      </div>
+                    </div>
+                    <p className={`font-bold ${r.posicao <= 3 ? 'text-primary' : 'text-foreground'}`}>
+                      {r.pontos.toLocaleString()} pts
+                    </p>
+                  </div>
+                ))}
+                <div className="mt-4 p-3 rounded-xl border border-primary/30 bg-primary/5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Star className="w-5 h-5 text-primary" />
+                    <p className="font-medium text-primary">Você</p>
+                  </div>
+                  <p className="font-bold text-primary">{pontos.toLocaleString()} pts</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

@@ -1,0 +1,526 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  ShoppingCart, Plus, Minus, Trash2, 
+  CreditCard, Smartphone, Users, Award,
+  Zap, Heart, Shield, Sparkles, Star,
+  Package, TrendingUp, Gift, Crown,
+  Loader2
+} from 'lucide-react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+
+// Produtos de saúde e bem-estar VIVA369
+const PRODUTOS = [
+  { 
+    id: 1, 
+    nome: 'Kit Iniciante VIVA369', 
+    preco: 97.00, 
+    comissao: 30,
+    categoria: 'Kits',
+    icone: Package,
+    descricao: 'Kit completo para iniciar sua jornada de saúde',
+    badge: 'Popular'
+  },
+  { 
+    id: 2, 
+    nome: 'Suplemento Energia VIVA+', 
+    preco: 49.90, 
+    comissao: 20,
+    categoria: 'Suplementos',
+    icone: Zap,
+    descricao: 'Aumente sua energia e disposição diária',
+    badge: 'Novo'
+  },
+  { 
+    id: 3, 
+    nome: 'Cápsulas de Saúde Diária', 
+    preco: 89.90, 
+    comissao: 25,
+    categoria: 'Suplementos',
+    icone: Heart,
+    descricao: 'Vitaminas e minerais essenciais',
+    badge: 'Recomendado'
+  },
+  { 
+    id: 4, 
+    nome: 'Guia de Alimentação Saudável', 
+    preco: 37.00, 
+    comissao: 15,
+    categoria: 'E-books',
+    icone: Sparkles,
+    descricao: 'Aprenda a se alimentar melhor todos os dias',
+    badge: 'Bônus'
+  },
+  { 
+    id: 5, 
+    nome: 'Kit Proteína Completa', 
+    preco: 149.90, 
+    comissao: 35,
+    categoria: 'Suplementos',
+    icone: Shield,
+    descricao: 'Whey Protein + Creatina + Glutamina',
+    badge: 'Oferta'
+  },
+  { 
+    id: 6, 
+    nome: 'Plano 30 Dias de Transformação', 
+    preco: 197.00, 
+    comissao: 40,
+    categoria: 'Planos',
+    icone: Crown,
+    descricao: 'Programa completo de 30 dias de mudança',
+    badge: 'Premium'
+  },
+  { 
+    id: 7, 
+    nome: 'Desafio 60 Dias VIVA+', 
+    preco: 297.00, 
+    comissao: 50,
+    categoria: 'Planos',
+    icone: TrendingUp,
+    descricao: 'Desafio de 60 dias para resultados incríveis',
+    badge: 'Mais Vendido'
+  },
+  { 
+    id: 8, 
+    nome: 'Kit de Detox 7 Dias', 
+    preco: 67.00, 
+    comissao: 20,
+    categoria: 'Kits',
+    icone: Gift,
+    descricao: 'Kit completo para desintoxicação do corpo',
+    badge: 'Sazonal'
+  },
+];
+
+interface ItemCarrinho {
+  produto: typeof PRODUTOS[0];
+  quantidade: number;
+}
+
+export default function PdvPage() {
+  const { user } = useAuth();
+  const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
+  const [clienteNome, setClienteNome] = useState('');
+  const [showPagamento, setShowPagamento] = useState(false);
+  const [metodoPagamento, setMetodoPagamento] = useState('pix');
+  const [loading, setLoading] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const adicionarAoCarrinho = (produto: typeof PRODUTOS[0]) => {
+    setCarrinho(prev => {
+      const existente = prev.find(item => item.produto.id === produto.id);
+      if (existente) {
+        return prev.map(item =>
+          item.produto.id === produto.id
+            ? { ...item, quantidade: item.quantidade + 1 }
+            : item
+        );
+      }
+      return [...prev, { produto, quantidade: 1 }];
+    });
+  };
+
+  const removerDoCarrinho = (produtoId: number) => {
+    setCarrinho(prev => {
+      const existente = prev.find(item => item.produto.id === produtoId);
+      if (existente && existente.quantidade > 1) {
+        return prev.map(item =>
+          item.produto.id === produtoId
+            ? { ...item, quantidade: item.quantidade - 1 }
+            : item
+        );
+      }
+      return prev.filter(item => item.produto.id !== produtoId);
+    });
+  };
+
+  const removerItemCompleto = (produtoId: number) => {
+    setCarrinho(prev => prev.filter(item => item.produto.id !== produtoId));
+  };
+
+  const calcularTotal = () => {
+    return carrinho.reduce((total, item) => total + (item.produto.preco * item.quantidade), 0);
+  };
+
+  const calcularComissaoTotal = () => {
+    return carrinho.reduce((total, item) => {
+      const comissaoProduto = (item.produto.preco * item.produto.comissao) / 100;
+      return total + (comissaoProduto * item.quantidade);
+    }, 0);
+  };
+
+  const calcularComissaoPlataforma = () => {
+    const total = calcularTotal();
+    const comissaoVendedor = calcularComissaoTotal();
+    return total - comissaoVendedor;
+  };
+
+  const finalizarPedido = async () => {
+    if (carrinho.length === 0) {
+      alert('Seu carrinho está vazio!');
+      return;
+    }
+
+    if (!user) {
+      alert('Você precisa estar logado para finalizar a compra');
+      return;
+    }
+
+    setShowPagamento(true);
+  };
+
+  const confirmarPagamento = async () => {
+    setSalvando(true);
+    setError(null);
+    setLoading(true);
+
+    try {
+      const total = calcularTotal();
+      const comissao = calcularComissaoTotal();
+      const plataforma = calcularComissaoPlataforma();
+
+      // Verificar se o usuário tem um perfil/líder
+      const { data: perfilData, error: perfilError } = await supabase
+        .from('perfis')
+        .select('id')
+        .eq('id', user?.id)
+        .single();
+
+      if (perfilError) {
+        console.warn('Perfil não encontrado, usando apenas user.id');
+      }
+
+      // Inserir venda com usuario_id
+      const { error } = await supabase
+        .from('vendas')
+        .insert({
+          usuario_id: user?.id,
+          cliente_nome: clienteNome || 'Anônimo',
+          produtos: carrinho,
+          total: total,
+          comissao_vendedor: comissao,
+          comissao_plataforma: plataforma,
+          metodo_pagamento: metodoPagamento,
+          status: 'concluida'
+        });
+
+      if (error) {
+        console.error('Erro ao salvar venda:', error);
+        setError(`Erro ao salvar venda: ${error.message}`);
+        setSalvando(false);
+        setLoading(false);
+        return;
+      }
+
+      // Atualizar comissão do líder (se tiver perfil)
+      if (perfilData) {
+        const { data: liderData } = await supabase
+          .from('lideres')
+          .select('total_comissoes')
+          .eq('id', user?.id)
+          .single();
+
+        if (liderData) {
+          await supabase
+            .from('lideres')
+            .update({
+              total_comissoes: (liderData.total_comissoes || 0) + comissao,
+              total_indicacoes: (liderData.total_indicacoes || 0) + 1
+            })
+            .eq('id', user?.id);
+        }
+      }
+
+      alert(`✅ Pedido finalizado com sucesso!\n\nTotal: R$ ${total.toFixed(2)}\nSua comissão: R$ ${comissao.toFixed(2)}`);
+      
+      setCarrinho([]);
+      setClienteNome('');
+      setShowPagamento(false);
+      
+    } catch (err: any) {
+      console.error('Erro ao finalizar pedido:', err);
+      setError(`Erro ao processar pagamento: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setSalvando(false);
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-500 p-6">
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <ShoppingCart className="h-6 w-6" />
+              PDV VIVA369
+            </h1>
+            <p className="text-white/80 text-sm">Venda produtos de saúde e bem-estar</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Badge className="bg-white/20 text-white border-0 px-4 py-2">
+              <Award className="h-4 w-4 mr-2" />
+              Comissão: até 50%
+            </Badge>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-lg">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Lista de Produtos */}
+        <div className="md:col-span-2 space-y-4">
+          <h2 className="text-lg font-semibold text-white">Produtos VIVA369</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {PRODUTOS.map((produto) => {
+              const noCarrinho = carrinho.find(item => item.produto.id === produto.id);
+              return (
+                <Card key={produto.id} className="bg-slate-800 border-slate-700 hover:border-emerald-500/30 transition-all">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-white text-sm">{produto.nome}</CardTitle>
+                        <p className="text-xs text-slate-400">{produto.categoria}</p>
+                      </div>
+                      {produto.badge && (
+                        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
+                          {produto.badge}
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <p className="text-xs text-slate-400">{produto.descricao}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-lg font-bold text-emerald-400">
+                        R$ {produto.preco.toFixed(2)}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        Comissão: {produto.comissao}%
+                      </span>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    {noCarrinho ? (
+                      <div className="flex items-center gap-2 w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="flex-1 border-slate-600 text-slate-400"
+                          onClick={() => removerDoCarrinho(produto.id)}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="text-white font-medium w-8 text-center">
+                          {noCarrinho.quantidade}
+                        </span>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="flex-1 border-slate-600 text-slate-400"
+                          onClick={() => adicionarAoCarrinho(produto)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button 
+                        className="w-full bg-emerald-500 hover:bg-emerald-600 gap-2"
+                        onClick={() => adicionarAoCarrinho(produto)}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Adicionar
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Carrinho */}
+        <div className="space-y-4">
+          <Card className="bg-slate-800 border-slate-700 sticky top-4">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-emerald-400" />
+                Carrinho
+                {carrinho.length > 0 && (
+                  <Badge className="bg-emerald-500 text-white ml-2">
+                    {carrinho.reduce((acc, item) => acc + item.quantidade, 0)}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 max-h-[400px] overflow-y-auto">
+              {carrinho.length === 0 ? (
+                <div className="text-center py-8">
+                  <ShoppingCart className="h-12 w-12 mx-auto text-slate-600 mb-2" />
+                  <p className="text-slate-400 text-sm">Seu carrinho está vazio</p>
+                </div>
+              ) : (
+                <>
+                  {carrinho.map((item) => (
+                    <div key={item.produto.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-700/30">
+                      <div className="flex-1">
+                        <p className="text-sm text-white">{item.produto.nome}</p>
+                        <p className="text-xs text-slate-400">
+                          {item.quantidade}x R$ {item.produto.preco.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-slate-400 hover:text-white"
+                          onClick={() => removerDoCarrinho(item.produto.id)}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="text-white text-sm w-6 text-center">{item.quantidade}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-slate-400 hover:text-white"
+                          onClick={() => adicionarAoCarrinho(item.produto)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                          onClick={() => removerItemCompleto(item.produto.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </CardContent>
+            <CardFooter className="border-t border-slate-700 pt-4 flex-col gap-3">
+              {carrinho.length > 0 && (
+                <>
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-slate-400 text-sm">Subtotal:</span>
+                    <span className="text-white font-bold">R$ {calcularTotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between w-full text-xs">
+                    <span className="text-slate-500">Sua comissão:</span>
+                    <span className="text-emerald-400">R$ {calcularComissaoTotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between w-full text-xs">
+                    <span className="text-slate-500">Plataforma:</span>
+                    <span className="text-amber-400">R$ {calcularComissaoPlataforma().toFixed(2)}</span>
+                  </div>
+                  <div className="w-full">
+                    <Label className="text-slate-400 text-xs">Nome do Cliente</Label>
+                    <Input
+                      value={clienteNome}
+                      onChange={(e) => setClienteNome(e.target.value)}
+                      placeholder="Opcional"
+                      className="bg-slate-700 border-slate-600 text-white text-sm mt-1"
+                    />
+                  </div>
+                  <Button 
+                    className="w-full bg-gradient-to-r from-emerald-500 to-amber-500 hover:opacity-90 text-white gap-2"
+                    onClick={finalizarPedido}
+                    disabled={carrinho.length === 0}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Finalizar Pedido
+                  </Button>
+                </>
+              )}
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+
+      {/* Modal de Pagamento */}
+      <Dialog open={showPagamento} onOpenChange={setShowPagamento}>
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Finalizar Pagamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-slate-700/30 p-4 rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Total:</span>
+                <span className="text-white font-bold">R$ {calcularTotal().toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Sua comissão:</span>
+                <span className="text-emerald-400">R$ {calcularComissaoTotal().toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div>
+              <Label className="text-slate-400">Método de Pagamento</Label>
+              <Select value={metodoPagamento} onValueChange={setMetodoPagamento}>
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-700 border-slate-600">
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="credito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="boleto">Boleto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {metodoPagamento === 'pix' && (
+              <div className="bg-slate-700/30 p-4 rounded-lg text-center">
+                <p className="text-xs text-slate-400 mb-2">QR Code PIX</p>
+                <div className="bg-white p-2 rounded-lg inline-block">
+                  <div className="w-32 h-32 bg-slate-200 rounded flex items-center justify-center text-slate-400 text-xs">
+                    QR CODE
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Chave PIX: viva369@pagamento.com</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowPagamento(false)} className="border-slate-600 text-slate-400">
+              Cancelar
+            </Button>
+            <Button 
+              className="bg-emerald-500 hover:bg-emerald-600"
+              onClick={confirmarPagamento}
+              disabled={salvando || loading}
+            >
+              {salvando || loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                'Confirmar Pagamento'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

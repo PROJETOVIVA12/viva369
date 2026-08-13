@@ -1,0 +1,151 @@
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useAuth } from './AuthContext';
+import { supabase } from '@/lib/supabase';
+
+interface AcessoContextType {
+  temAcesso: boolean;
+  loading: boolean;
+  verificarAcesso: () => Promise<boolean>;
+  liberarAcesso: (voucher: string) => Promise<{ success: boolean; message: string }>;
+}
+
+const AcessoContext = createContext<AcessoContextType>({
+  temAcesso: false,
+  loading: true,
+  verificarAcesso: async () => false,
+  liberarAcesso: async () => ({ success: false, message: '' }),
+});
+
+export const AcessoProvider = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  const [temAcesso, setTemAcesso] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const verificarAcesso = async () => {
+    if (!user) {
+      setTemAcesso(false);
+      setLoading(false);
+      return false;
+    }
+
+    try {
+      // Verificar se é o admin
+      const { data: userData } = await supabase
+        .from('usuarios')
+        .select('role, email')
+        .eq('id', user.id)
+        .single();
+
+      // Admin tem acesso liberado
+      if (userData?.role === 'admin') {
+        setTemAcesso(true);
+        setLoading(false);
+        return true;
+      }
+
+      // Verificar acesso na tabela acessos
+      const { data, error } = await supabase
+        .from('acessos')
+        .select('status, data_expiracao')
+        .eq('usuario_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      const agora = new Date();
+
+      const acessoAtivo =
+        data?.status === 'ativo' &&
+        (
+          !data.data_expiracao ||
+          new Date(data.data_expiracao) > agora
+        );
+
+      if (acessoAtivo) {
+        setTemAcesso(true);
+        setLoading(false);
+        return true;
+      }
+
+      setTemAcesso(false);
+      setLoading(false);
+      return false;
+    } catch (error) {
+      console.error('Erro ao verificar acesso:', error);
+      setTemAcesso(false);
+      setLoading(false);
+      return false;
+    }
+  };
+
+  const liberarAcesso = async (voucher: string): Promise<{ success: boolean; message: string }> => {
+    if (!user) {
+      return { success: false, message: 'Usuário não autenticado' };
+    }
+
+    try {
+      // Verificar se o voucher existe e está disponível
+      const { data: voucherData, error: voucherError } = await supabase
+        .from('vouchers')
+        .select('*')
+        .eq('codigo', voucher)
+        .eq('status', 'disponivel')
+        .single();
+
+      if (voucherError || !voucherData) {
+        return { success: false, message: 'Voucher inválido ou já utilizado' };
+      }
+
+      // Marcar voucher como usado
+      const { error: updateError } = await supabase
+        .from('vouchers')
+        .update({
+          status: 'usado',
+          usado_por: user.id,
+          data_uso: new Date().toISOString()
+        })
+        .eq('id', voucherData.id);
+
+      if (updateError) throw updateError;
+
+      // Registrar acesso
+      const { error: acessoError } = await supabase
+        .from('acessos')
+        .insert({
+          usuario_id: user.id,
+          email: user.email,
+          status: 'ativo',
+          tipo_acesso: 'voucher',
+          voucher_utilizado: voucher,
+          data_adesao: new Date().toISOString()
+        });
+
+      if (acessoError) throw acessoError;
+
+      setTemAcesso(true);
+      return { success: true, message: '✅ Acesso liberado com sucesso!' };
+    } catch (error) {
+      console.error('Erro ao liberar acesso:', error);
+      return { success: false, message: 'Erro ao processar voucher' };
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      verificarAcesso();
+    } else {
+      setTemAcesso(false);
+      setLoading(false);
+    }
+  }, [user]);
+
+  return (
+    <AcessoContext.Provider value={{ temAcesso, loading, verificarAcesso, liberarAcesso }}>
+      {children}
+    </AcessoContext.Provider>
+  );
+};
+
+export const useAcesso = () => useContext(AcessoContext);

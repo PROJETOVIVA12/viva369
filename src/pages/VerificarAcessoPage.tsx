@@ -1,0 +1,319 @@
+import { cn } from "@/lib/utils";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAcesso } from '@/contexts/AcessoContext';
+import { supabase } from '@/lib/supabase';
+import { 
+  Lock, Unlock, CheckCircle, XCircle, 
+  CreditCard, Wallet, Gift, Zap,
+  Loader2, Shield, Crown
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+
+export default function VerificarAcessoPage() {
+  const { user } = useAuth();
+  const { temAcesso, loading, liberarAcesso } = useAcesso();
+  const navigate = useNavigate();
+  const [voucher, setVoucher] = useState('');
+  const [processando, setProcessando] = useState(false);
+const [processandoPagamento, setProcessandoPagamento] = useState(false);
+  const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro' | 'info', texto: string } | null>(null);
+
+  const handleLiberarAcesso = async () => {
+    if (!voucher.trim()) {
+      setMensagem({ tipo: 'erro', texto: 'Digite um voucher válido' });
+      return;
+    }
+
+    setProcessando(true);
+    setMensagem(null);
+
+    const result = await liberarAcesso(voucher.trim());
+    setMensagem({ 
+      tipo: result.success ? 'sucesso' : 'erro', 
+      texto: result.message 
+    });
+
+    if (result.success) {
+      setTimeout(() => navigate('/dashboard'), 2000);
+    }
+
+    setProcessando(false);
+  };
+
+  
+const handleRealizarPagamento = async () => {
+  if (!user) {
+    setMensagem({
+      tipo: 'erro',
+      texto: 'Você precisa estar conectado para realizar o pagamento.'
+    });
+    return;
+  }
+
+  if (processandoPagamento) return;
+
+  /*
+   * Abrimos uma aba vazia imediatamente porque alguns navegadores
+   * bloqueiam window.open depois de uma operação assíncrona.
+   * A Ton somente será carregada nessa aba depois que o banco
+   * confirmar a criação/reutilização do pagamento pendente.
+   */
+  const abaPagamento = window.open('', '_blank');
+
+  if (abaPagamento) {
+    try {
+      abaPagamento.opener = null;
+      abaPagamento.document.title = 'VIVA369 - Preparando pagamento';
+      abaPagamento.document.body.innerHTML =
+        '<p style="font-family:Arial,sans-serif;padding:24px;">Preparando seu pagamento VIVA369...</p>';
+    } catch {
+      // Alguns navegadores podem restringir acesso à aba.
+    }
+  }
+
+  setProcessandoPagamento(true);
+  setMensagem({
+    tipo: 'info',
+    texto: 'Preparando seu pagamento...'
+  });
+
+  try {
+    const { data, error } = await supabase.rpc(
+      'iniciar_pagamento_viva369',
+      {
+        p_oferta_codigo: 'LANCAMENTO300'
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    const resultado = data as any;
+
+    if (!resultado?.ok) {
+      throw new Error(
+        resultado?.mensagem ||
+        'Não foi possível iniciar o pagamento.'
+      );
+    }
+
+    // Usuário já possui acesso ou pagamento aprovado.
+    if (
+      resultado.status === 'acesso_ativo' ||
+      resultado.status === 'aprovado'
+    ) {
+      if (abaPagamento && !abaPagamento.closed) {
+        abaPagamento.close();
+      }
+
+      setMensagem({
+        tipo: 'sucesso',
+        texto: 'Seu acesso já está ativo. Redirecionando...'
+      });
+
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 800);
+
+      return;
+    }
+
+    if (resultado.status !== 'pendente') {
+      throw new Error(
+        'Não foi possível preparar o pagamento. Tente novamente.'
+      );
+    }
+
+    setMensagem({
+      tipo: 'sucesso',
+      texto: resultado.ja_existente
+        ? 'Pagamento pendente localizado. Abrindo a Ton...'
+        : 'Pagamento registrado. Abrindo a Ton...'
+    });
+
+    const tonUrl =
+      'https://payment-link-v3.ton.com.br/pl_lekNqp5wjnAGwLrSZFK2OYEg427QRzZ3';
+
+    if (abaPagamento && !abaPagamento.closed) {
+      abaPagamento.location.href = tonUrl;
+    } else {
+      /*
+       * Caso o navegador tenha bloqueado a nova aba,
+       * usamos a própria página.
+       */
+      window.location.href = tonUrl;
+    }
+
+  } catch (erro: any) {
+    console.error(
+      'Erro ao iniciar pagamento VIVA369:',
+      erro
+    );
+
+    if (abaPagamento && !abaPagamento.closed) {
+      abaPagamento.close();
+    }
+
+    let textoErro =
+      erro?.message ||
+      'Não foi possível iniciar o pagamento. Tente novamente.';
+
+    if (
+      textoErro.toLowerCase().includes('vagas') &&
+      textoErro.toLowerCase().includes('encerradas')
+    ) {
+      textoErro =
+        'As 300 vagas da oferta de lançamento foram encerradas.';
+    }
+
+    setMensagem({
+      tipo: 'erro',
+      texto: textoErro
+    });
+
+  } finally {
+    setProcessandoPagamento(false);
+  }
+};
+
+// Se já tem acesso, redirecionar
+  if (!loading && temAcesso) {
+    navigate('/dashboard');
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
+      <Card className="w-full max-w-md bg-slate-800 border-slate-700 shadow-2xl">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 p-3 rounded-full bg-gradient-to-r from-emerald-500 to-amber-500 w-16 h-16 flex items-center justify-center">
+            <Lock className="h-8 w-8 text-white" />
+          </div>
+          <CardTitle className="text-2xl text-white">Acesso Restrito</CardTitle>
+          <CardDescription className="text-slate-400">
+            Para acessar o VIVA369, você precisa ter um acesso ativo
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Informações do usuário */}
+          <div className="bg-slate-700/30 p-4 rounded-lg">
+            <p className="text-sm text-slate-400">Usuário</p>
+            <p className="text-white font-medium">{user?.email}</p>
+          </div>
+
+          {/* Valor da assinatura */}
+          <div className="bg-gradient-to-r from-emerald-500/10 to-amber-500/10 p-4 rounded-lg border border-emerald-500/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-400">Valor da Adesão</p>
+                <p className="text-2xl font-bold text-white">R$ 250,00</p>
+              </div>
+              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                <Shield className="h-3 w-3 mr-1" />
+                Acesso por 36 meses
+              </Badge>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Oferta de lançamento para os primeiros 300 participantes. Acesso por 36 meses após a confirmação do pagamento.
+            </p>
+          </div>
+
+          {/* Mensagem */}
+          {mensagem && (
+            <Alert className={cn(
+              mensagem.tipo === 'sucesso' ? 'bg-emerald-500/10 border-emerald-500/30' :
+              mensagem.tipo === 'erro' ? 'bg-red-500/10 border-red-500/30' :
+              'bg-blue-500/10 border-blue-500/30'
+            )}>
+              <AlertDescription className={cn(
+                mensagem.tipo === 'sucesso' ? 'text-emerald-400' :
+                mensagem.tipo === 'erro' ? 'text-red-400' :
+                'text-blue-400'
+              )}>
+                {mensagem.texto}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Formulário de Voucher */}
+          <div className="space-y-3">
+            <Label className="text-slate-400 flex items-center gap-2">
+              <Gift className="h-4 w-4" />
+              Digite seu voucher
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                value={voucher}
+                onChange={(e) => setVoucher(e.target.value.toUpperCase())}
+                placeholder="Ex: VIVA369-001"
+                className="bg-slate-700 border-slate-600 text-white flex-1 uppercase"
+                disabled={processando}
+              />
+              <Button
+                onClick={handleLiberarAcesso}
+                disabled={processando || !voucher.trim()}
+                className="bg-gradient-to-r from-emerald-500 to-amber-500 text-white"
+              >
+                {processando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Unlock className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Não tem um voucher? Entre em contato com o suporte.
+            </p>
+          </div>
+
+          {/* Botão de Pagamento */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-700" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-slate-800 px-2 text-slate-500">ou</span>
+            </div>
+          </div>
+
+          <Button 
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white gap-2"
+            onClick={handleRealizarPagamento}
+        disabled={processandoPagamento}
+          >
+            {processandoPagamento ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Preparando Pagamento...
+          </>
+        ) : (
+          <>
+            <CreditCard className="h-4 w-4" />
+            Realizar Pagamento
+          </>
+        )}
+          </Button>
+        </CardContent>
+
+        <CardFooter className="flex flex-col gap-2 text-center border-t border-slate-700 pt-4">
+          <p className="text-xs text-slate-500">
+            <Zap className="h-3 w-3 inline text-emerald-400" />
+            O VIVA369 - Sua jornada de saúde
+          </p>
+          <p className="text-xs text-slate-600">
+            Após a confirmação do pagamento, seu acesso será liberado no VIVA369.
+          </p>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}

@@ -1,0 +1,784 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import {
+  Calendar, CheckCircle, Circle, Clock, Flame,
+  Leaf, Apple, Droplet, Moon, Sun, Zap,
+  Award, Crown, Gem, Sparkles, Target,
+  Users, Share2, Lock, Unlock, Star,
+  BookOpen, Heart, Shield, Brain, Activity,
+  AlertCircle, Info, Check, X, Coffee,
+  Utensils, Droplets, Pill, Timer, TrendingUp,
+  ChevronDown, ChevronUp, Play, Pause,
+  Salad, Soup, GlassWater, Smartphone, Monitor,
+  AlertTriangle, Database, RefreshCw
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { cn } from '@/lib/utils';
+
+// ============================================
+// FASES DA LIMPEZA HEPÁTICA
+// ============================================
+
+const FASES_LIMPEZA = {
+  preparacao: {
+    nome: '🌿 FASE 1 - PREPARAÇÃO',
+    cor: 'from-emerald-500 to-green-500',
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/30',
+    text: 'text-emerald-400',
+    icone: BookOpen,
+    duracao: 'Dias 1-7',
+    descricao: 'Preparação do corpo para a limpeza profunda',
+    objetivos: [
+      '🌱 Reduzir inflamações',
+      '🌱 Preparar o fígado para a desintoxicação',
+      '🌱 Iniciar alimentação leve'
+    ]
+  },
+  limpeza1: {
+    nome: '💧 FASE 2 - 1ª LIMPEZA',
+    cor: 'from-amber-500 to-yellow-500',
+    bg: 'bg-amber-500/10',
+    border: 'border-amber-500/30',
+    text: 'text-amber-400',
+    icone: Droplet,
+    duracao: 'Dias 8-15',
+    descricao: 'Primeira limpeza hepática profunda',
+    objetivos: [
+      '💧 Eliminar toxinas acumuladas',
+      '💧 Liberar cálculos biliares',
+      '💧 Restaurar função hepática'
+    ]
+  },
+  recuperacao: {
+    nome: '❤️ FASE 3 - RECUPERAÇÃO',
+    cor: 'from-blue-500 to-cyan-500',
+    bg: 'bg-blue-500/10',
+    border: 'border-blue-500/30',
+    text: 'text-blue-400',
+    icone: Heart,
+    duracao: 'Dias 16-30',
+    descricao: 'Recuperação e fortalecimento do fígado',
+    objetivos: [
+      '❤️ Regenerar células hepáticas',
+      '❤️ Fortalecer o sistema imunológico',
+      '❤️ Estabelecer novos hábitos'
+    ]
+  },
+  limpeza2: {
+    nome: '🛡️ FASE 4 - 2ª LIMPEZA',
+    cor: 'from-purple-500 to-violet-500',
+    bg: 'bg-purple-500/10',
+    border: 'border-purple-500/30',
+    text: 'text-purple-400',
+    icone: Shield,
+    duracao: 'Dias 31-45',
+    descricao: 'Segunda limpeza hepática - Consolidação',
+    objetivos: [
+      '🛡️ Consolidar os resultados',
+      '🛡️ Limpeza mais profunda',
+      '🛡️ Equilíbrio hormonal'
+    ]
+  },
+  fortalecimento: {
+    nome: '💪 FASE 5 - FORTALECIMENTO',
+    cor: 'from-orange-500 to-red-500',
+    bg: 'bg-orange-500/10',
+    border: 'border-orange-500/30',
+    text: 'text-orange-400',
+    icone: Shield,
+    duracao: 'Dias 46-60',
+    descricao: 'Fortalecimento e manutenção',
+    objetivos: [
+      '💪 Manter os resultados',
+      '💪 Prevenir novas toxinas',
+      '💪 Estilo de vida saudável'
+    ]
+  },
+  limpeza3: {
+    nome: '🎯 FASE 6 - 3ª LIMPEZA',
+    cor: 'from-indigo-500 to-purple-500',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/30',
+    text: 'text-indigo-400',
+    icone: Target,
+    duracao: 'Dias 61-75',
+    descricao: 'Terceira limpeza - Consolidação final',
+    objetivos: [
+      '🎯 Limpeza definitiva',
+      '🎯 Equilíbrio energético',
+      '🎯 Saúde plena'
+    ]
+  },
+  consolidacao: {
+    nome: '👑 FASE 7 - CONSOLIDAÇÃO',
+    cor: 'from-rose-500 to-pink-500',
+    bg: 'bg-rose-500/10',
+    border: 'border-rose-500/30',
+    text: 'text-rose-400',
+    icone: Crown,
+    duracao: 'Dias 76-90',
+    descricao: 'Consolidação da nova saúde',
+    objetivos: [
+      '👑 Manter a saúde conquistada',
+      '👑 Prevenir recaídas',
+      '👑 Viver com vitalidade'
+    ]
+  }
+};
+
+// ============================================
+// PASSO A PASSO DETALHADO
+// ============================================
+
+const PASSO_A_PASSO = [
+  {
+    semana: 'Semana 1 - Adaptação',
+    passos: [
+      '🌅 Acordar e beber 500ml de água com limão',
+      '🥗 Café da manhã: Frutas + Aveia',
+      '🏃 30 minutos de caminhada',
+      '🥤 Suco detox no meio da manhã',
+      '🍲 Almoço: Salada + Proteína magra',
+      '☕ Chá digestivo após o almoço',
+      '🌙 Jantar leve até 20h',
+      '🧘 5 minutos de meditação antes de dormir'
+    ]
+  },
+  {
+    semana: 'Semana 2 - Intensificação',
+    passos: [
+      '🌅 500ml de água com limão + gengibre',
+      '🥗 Café da manhã: Ovos + Vegetais',
+      '🏃 45 minutos de caminhada ou corrida',
+      '🥤 Suco verde com clorofila',
+      '🍲 Almoço: Salada + Peixe grelhado',
+      '☕ Chá de hibisco à tarde',
+      '🌙 Jantar: Sopa de legumes',
+      '🧘 10 minutos de meditação'
+    ]
+  },
+  {
+    semana: 'Semana 3 - Consolidação',
+    passos: [
+      '🌅 500ml de água com limão + cúrcuma',
+      '🥗 Café da manhã: Smoothie de frutas',
+      '🏃 1 hora de atividade física',
+      '🥤 Suco detox com beterraba',
+      '🍲 Almoço: Salada + Frango grelhado',
+      '☕ Chá de erva-doce à tarde',
+      '🌙 Jantar: Sopa de abóbora',
+      '🧘 15 minutos de meditação'
+    ]
+  },
+  {
+    semana: 'Semana 4 - Transformação',
+    passos: [
+      '🌅 500ml de água com limão + canela',
+      '🥗 Café da manhã: Omelete de claras',
+      '🏃 1 hora de treino intenso',
+      '🥤 Suco detox com couve',
+      '🍲 Almoço: Salada + Carne magra',
+      '☕ Chá de boldo à tarde',
+      '🌙 Jantar: Sopa de legumes',
+      '🧘 20 minutos de meditação'
+    ]
+  }
+];
+
+// ============================================
+// RECEITAS DIÁRIAS
+// ============================================
+
+const RECEITAS_DIARIAS = [
+  {
+    dia: 1,
+    titulo: '🌅 Dia 1 - Preparação Inicial',
+    descricao: 'Comece sua jornada com uma alimentação leve e nutritiva',
+    refeicoes: {
+      cafe: {
+        titulo: '🌅 Café da Manhã',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Frutas + Aveia', 
+            ingredientes: ['Banana', 'Maçã', 'Aveia em flocos', 'Mel'], 
+            preparo: 'Misture todos os ingredientes e sirva em temperatura ambiente' 
+          },
+          { 
+            nome: 'Opção 2: Smoothie Verde', 
+            ingredientes: ['Espinafre', 'Banana', 'Maçã', 'Água de coco'], 
+            preparo: 'Bata todos os ingredientes no liquidificador até ficar homogêneo' 
+          }
+        ]
+      },
+      almoco: {
+        titulo: '🍽️ Almoço',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Salada Completa', 
+            ingredientes: ['Alface', 'Tomate', 'Cenoura ralada', 'Frango grelhado'], 
+            preparo: 'Monte a salada e adicione o frango por cima' 
+          },
+          { 
+            nome: 'Opção 2: Peixe com Legumes', 
+            ingredientes: ['Filé de salmão', 'Brócolis', 'Cenoura', 'Azeite de oliva'], 
+            preparo: 'Grelhe o salmão e cozinhe os legumes no vapor' 
+          }
+        ]
+      },
+      jantar: {
+        titulo: '🌙 Jantar',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Sopa de Legumes', 
+            ingredientes: ['Abóbora', 'Cenoura', 'Cebola', 'Caldo de legumes'], 
+            preparo: 'Cozinhe todos os ingredientes e bata no liquidificador' 
+          },
+          { 
+            nome: 'Opção 2: Omelete de Claras', 
+            ingredientes: ['Claras de ovo', 'Espinafre', 'Tomate', 'Cebola'], 
+            preparo: 'Refogue os vegetais e adicione as claras batidas' 
+          }
+        ]
+      },
+      chas: {
+        titulo: '☕ Chás',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Chá de Erva Doce', 
+            ingredientes: ['Sementes de erva doce', 'Água filtrada'], 
+            preparo: 'Ferva a água e adicione as sementes por 10 minutos' 
+          },
+          { 
+            nome: 'Opção 2: Chá de Hibisco', 
+            ingredientes: ['Flores de hibisco', 'Água filtrada'], 
+            preparo: 'Ferva a água e adicione o hibisco por 5 minutos' 
+          }
+        ]
+      }
+    }
+  },
+  {
+    dia: 2,
+    titulo: '🌿 Dia 2 - Alimentação Leve',
+    descricao: 'Continue com a alimentação leve e nutritiva',
+    refeicoes: {
+      cafe: {
+        titulo: '🌅 Café da Manhã',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Iogurte com Granola', 
+            ingredientes: ['Iogurte natural', 'Granola', 'Frutas vermelhas'], 
+            preparo: 'Misture todos os ingredientes em uma tigela' 
+          },
+          { 
+            nome: 'Opção 2: Ovos com Vegetais', 
+            ingredientes: ['Ovos', 'Espinafre', 'Tomate', 'Cebola'], 
+            preparo: 'Prepare um omelete com os vegetais' 
+          }
+        ]
+      },
+      almoco: {
+        titulo: '🍽️ Almoço',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Frango Grelhado', 
+            ingredientes: ['Peito de frango', 'Salada verde', 'Arroz integral'], 
+            preparo: 'Grelhe o frango e sirva com a salada' 
+          },
+          { 
+            nome: 'Opção 2: Salada de Quinoa', 
+            ingredientes: ['Quinoa', 'Cenoura', 'Pepino', 'Tomate'], 
+            preparo: 'Cozinhe a quinoa e misture com os legumes' 
+          }
+        ]
+      },
+      jantar: {
+        titulo: '🌙 Jantar',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Sopa de Abóbora', 
+            ingredientes: ['Abóbora', 'Cenoura', 'Cebola', 'Leite de coco'], 
+            preparo: 'Cozinhe e bata no liquidificador com leite de coco' 
+          },
+          { 
+            nome: 'Opção 2: Wrap de Alface', 
+            ingredientes: ['Alface', 'Frango desfiado', 'Tomate', 'Cenoura'], 
+            preparo: 'Monte o wrap com alface e recheio' 
+          }
+        ]
+      },
+      chas: {
+        titulo: '☕ Chás',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Chá de Camomila', 
+            ingredientes: ['Flores de camomila', 'Água'], 
+            preparo: 'Ferva a água e adicione a camomila por 5 minutos' 
+          },
+          { 
+            nome: 'Opção 2: Chá de Boldo', 
+            ingredientes: ['Folhas de boldo', 'Água'], 
+            preparo: 'Ferva a água e adicione o boldo por 10 minutos' 
+          }
+        ]
+      }
+    }
+  },
+  {
+    dia: 3,
+    titulo: '💧 Dia 3 - Hidratação Intensiva',
+    descricao: 'Aumente a ingestão de água e chás diuréticos',
+    refeicoes: {
+      cafe: {
+        titulo: '🌅 Café da Manhã',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Smoothie de Frutas', 
+            ingredientes: ['Banana', 'Morango', 'Iogurte', 'Mel'], 
+            preparo: 'Bata tudo no liquidificador até ficar cremoso' 
+          },
+          { 
+            nome: 'Opção 2: Ovos Mexidos', 
+            ingredientes: ['Ovos', 'Cebola', 'Tomate', 'Salsinha'], 
+            preparo: 'Mexa os ovos com os vegetais em fogo baixo' 
+          }
+        ]
+      },
+      almoco: {
+        titulo: '🍽️ Almoço',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Salada de Folhas Verdes', 
+            ingredientes: ['Rúcula', 'Agrião', 'Pepino', 'Semente de abóbora'], 
+            preparo: 'Misture todos os ingredientes e tempere com azeite e limão' 
+          },
+          { 
+            nome: 'Opção 2: Peixe com Legumes', 
+            ingredientes: ['Filé de tilápia', 'Abobrinha', 'Cenoura', 'Azeite'], 
+            preparo: 'Grelhe o peixe e cozinhe os legumes no vapor' 
+          }
+        ]
+      },
+      jantar: {
+        titulo: '🌙 Jantar',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Sopa de Legumes', 
+            ingredientes: ['Cenoura', 'Batata', 'Cebola', 'Caldo de legumes'], 
+            preparo: 'Cozinhe tudo e bata no liquidificador' 
+          },
+          { 
+            nome: 'Opção 2: Salada de Grão-de-bico', 
+            ingredientes: ['Grão-de-bico', 'Cebola', 'Salsinha', 'Limão'], 
+            preparo: 'Misture o grão-de-bico com os temperos' 
+          }
+        ]
+      },
+      chas: {
+        titulo: '☕ Chás',
+        opcoes: [
+          { 
+            nome: 'Opção 1: Chá de Dente-de-leão', 
+            ingredientes: ['Raiz de dente-de-leão', 'Água'], 
+            preparo: 'Ferva a água e adicione a raiz por 10 minutos' 
+          },
+          { 
+            nome: 'Opção 2: Chá de Alecrim', 
+            ingredientes: ['Ramos de alecrim', 'Água'], 
+            preparo: 'Ferva a água e adicione o alecrim por 5 minutos' 
+          }
+        ]
+      }
+    }
+  }
+];
+
+// ============================================
+// COMPONENTE RECEITAS DIÁRIAS
+// ============================================
+
+function ReceitasDiarias({ dia }: { dia: number }) {
+  const receita = RECEITAS_DIARIAS.find(r => r.dia === dia);
+  
+  if (!receita) {
+    return (
+      <div className="text-center py-8">
+        <Utensils className="h-12 w-12 mx-auto text-slate-500 mb-2" />
+        <p className="text-slate-400">Receitas para este dia em breve</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-emerald-500/10 p-4 rounded-lg border border-emerald-500/20">
+        <h4 className="text-white font-medium">{receita.titulo}</h4>
+        <p className="text-sm text-slate-400">{receita.descricao}</p>
+      </div>
+
+      {Object.entries(receita.refeicoes).map(([key, refeicao]: [string, any]) => (
+        <Card key={key} className="bg-slate-700/30 border-slate-600">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-white text-sm">{refeicao.titulo}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-3">
+              {refeicao.opcoes.map((opcao: any, idx: number) => (
+                <div key={idx} className="bg-slate-800/50 p-3 rounded-lg border border-slate-600">
+                  <h5 className="text-emerald-400 font-medium text-sm">{opcao.nome}</h5>
+                  <div className="mt-2">
+                    <p className="text-xs text-slate-400 font-medium">Ingredientes:</p>
+                    <ul className="text-xs text-slate-300 list-disc list-inside">
+                      {opcao.ingredientes.map((ing: string, i: number) => (
+                        <li key={i}>{ing}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-xs text-slate-400 font-medium">Preparo:</p>
+                    <p className="text-xs text-slate-300">{opcao.preparo}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ============================================
+// COMPONENTE PRINCIPAL
+// ============================================
+
+export default function LimpezaHepaticaPage() {
+  const { user } = useAuth();
+  const [diasCompletos, setDiasCompletos] = useState(0);
+  const [desafioAtivo, setDesafioAtivo] = useState(false);
+  const [faseAtual, setFaseAtual] = useState('preparacao');
+  const [diaSelecionado, setDiaSelecionado] = useState(1);
+
+  const progressoTotal = Math.min((diasCompletos / 90) * 100, 100);
+
+  const iniciarDesafio = () => {
+    setDesafioAtivo(true);
+    setDiasCompletos(0);
+    setFaseAtual('preparacao');
+  };
+
+  const marcarDia = () => {
+    if (diasCompletos < 90) {
+      const novoDias = diasCompletos + 1;
+      setDiasCompletos(novoDias);
+      
+      if (novoDias <= 7) setFaseAtual('preparacao');
+      else if (novoDias <= 15) setFaseAtual('limpeza1');
+      else if (novoDias <= 30) setFaseAtual('recuperacao');
+      else if (novoDias <= 45) setFaseAtual('limpeza2');
+      else if (novoDias <= 60) setFaseAtual('fortalecimento');
+      else if (novoDias <= 75) setFaseAtual('limpeza3');
+      else setFaseAtual('consolidacao');
+    }
+  };
+
+  const getNivel = () => {
+    if (diasCompletos >= 90) return { nome: '👑 Mestre da Saúde', icone: Crown, cor: 'text-amber-400' };
+    if (diasCompletos >= 75) return { nome: '🛡️ Líder da Limpeza', icone: Shield, cor: 'text-purple-400' };
+    if (diasCompletos >= 60) return { nome: '🌟 Transformador', icone: Star, cor: 'text-blue-400' };
+    if (diasCompletos >= 30) return { nome: '🎯 Purificador', icone: Target, cor: 'text-emerald-400' };
+    if (diasCompletos >= 7) return { nome: '📖 Iniciante', icone: BookOpen, cor: 'text-slate-400' };
+    return { nome: '🌱 Desafiante', icone: Circle, cor: 'text-slate-500' };
+  };
+
+  const nivel = getNivel();
+  const fase = FASES_LIMPEZA[faseAtual as keyof typeof FASES_LIMPEZA];
+  const Icon = fase?.icone || BookOpen;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-amber-500 to-purple-500 p-6">
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <Sparkles className="h-6 w-6" />
+              Limpeza Hepática - 90 Dias
+            </h1>
+            <p className="text-white/80 text-sm">Protocolo completo de limpeza e desintoxicação</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Badge className="bg-white/20 text-white border-0 px-4 py-2">
+              <Target className="h-4 w-4 mr-2" />
+              {diasCompletos} / 90 dias
+            </Badge>
+            <Badge className={cn("bg-white/20 text-white border-0 px-4 py-2", nivel.cor)}>
+              <span className="mr-1">{nivel.icone}</span>
+              {nivel.nome}
+            </Badge>
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="flex justify-between text-sm text-white/70 mb-1">
+            <span>Início</span>
+            <span>{Math.round(progressoTotal)}%</span>
+            <span>90 Dias</span>
+          </div>
+          <Progress value={progressoTotal} className="h-2 bg-white/20" />
+        </div>
+      </div>
+
+      {/* Botões */}
+      <div className="flex flex-wrap gap-3">
+        {!desafioAtivo ? (
+          <Button className="bg-gradient-to-r from-emerald-500 to-amber-500 text-white" onClick={iniciarDesafio}>
+            <Unlock className="h-4 w-4 mr-2" />
+            Iniciar Desafio de 90 Dias
+          </Button>
+        ) : (
+          <Button className="bg-emerald-500 hover:bg-emerald-600 text-white" onClick={marcarDia}>
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Marcar Dia Completo
+          </Button>
+        )}
+        <Button variant="outline" className="border-slate-600 text-slate-400 hover:text-white">
+          <Share2 className="h-4 w-4 mr-2" />
+          Convidar Amigo
+        </Button>
+        <Button variant="outline" className="border-slate-600 text-slate-400 hover:text-white">
+          <Users className="h-4 w-4 mr-2" />
+          Criar Grupo
+        </Button>
+      </div>
+
+      {/* Aviso Médico */}
+      <Alert className="bg-amber-500/10 border-amber-500/30">
+        <AlertCircle className="h-4 w-4 text-amber-400" />
+        <AlertTitle className="text-amber-400">⚠️ Atenção à Saúde</AlertTitle>
+        <AlertDescription className="text-slate-300 text-sm">
+          O VIVA369 é uma plataforma de incentivo à saúde. Consulte sempre um profissional de saúde 
+          antes de iniciar qualquer programa. Informe seu médico sobre condições como diabetes, 
+          hipertensão, alergias ou qualquer outra condição de saúde.
+        </AlertDescription>
+      </Alert>
+
+      {/* Fase Atual */}
+      {desafioAtivo && fase && (
+        <Card className={cn("border-2", fase.border, fase.bg)}>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className={cn("p-3 rounded-xl bg-gradient-to-r", fase.cor, "text-white")}>
+                {React.createElement(fase.icone, { className: "h-6 w-6" })}
+              </div>
+              <div>
+                <CardTitle className={cn("text-xl", fase.text)}>{fase.nome}</CardTitle>
+                <CardDescription className="text-slate-400">{fase.descricao}</CardDescription>
+              </div>
+              <Badge className={cn("ml-auto", fase.border, fase.text)}>
+                {fase.duracao}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <p className="text-sm text-slate-300 font-medium">🎯 Objetivos:</p>
+              <ul className="list-disc list-inside text-sm text-slate-400 space-y-1">
+                {fase.objetivos.map((obj: string, idx: number) => (
+                  <li key={idx}>{obj}</li>
+                ))}
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* TABS PRINCIPAIS */}
+      <Tabs defaultValue="conograma" className="w-full">
+        <TabsList className="grid grid-cols-4 bg-slate-800 p-1 rounded-xl">
+          <TabsTrigger value="conograma" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">
+            <Calendar className="h-4 w-4 mr-2" />
+            Conograma
+          </TabsTrigger>
+          <TabsTrigger value="receitas" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">
+            <Utensils className="h-4 w-4 mr-2" />
+            Receitas
+          </TabsTrigger>
+          <TabsTrigger value="passoapasso" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">
+            <BookOpen className="h-4 w-4 mr-2" />
+            Passo a Passo
+          </TabsTrigger>
+          <TabsTrigger value="progresso" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Progresso
+          </TabsTrigger>
+        </TabsList>
+
+        {/* TAB 1 - CONOGRAMA */}
+        <TabsContent value="conograma" className="mt-6">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Timer className="h-5 w-5 text-emerald-400" />
+                Conograma - 90 Dias
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Acompanhe seu progresso dia a dia
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600 mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-slate-400">Progresso</span>
+                  <span className="text-sm text-emerald-400">{diasCompletos} / 90 dias</span>
+                </div>
+                <Progress value={progressoTotal} className="h-2 bg-slate-700" />
+              </div>
+
+              {/* Calendário 90 dias */}
+              <div className="grid grid-cols-10 gap-1">
+                {Array.from({ length: 90 }, (_, i) => i + 1).map((dia) => {
+                  const isCompleted = dia <= diasCompletos;
+                  const isCurrent = dia === diasCompletos + 1;
+                  return (
+                    <div 
+                      key={dia} 
+                      className={cn(
+                        "text-center p-1 rounded cursor-pointer transition-all",
+                        isCompleted ? "bg-emerald-500/30 border border-emerald-500/30" :
+                        isCurrent ? "bg-amber-500/30 border border-amber-500/30 animate-pulse" :
+                        "bg-slate-700/30 border border-slate-600 hover:border-slate-500"
+                      )}
+                      onClick={() => setDiaSelecionado(Math.min(dia, 3))}
+                    >
+                      <div className="text-[8px] text-slate-400">{dia}</div>
+                      {isCompleted && <CheckCircle className="h-2 w-2 text-emerald-400 mx-auto" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 2 - RECEITAS */}
+        <TabsContent value="receitas" className="mt-6">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Utensils className="h-5 w-5 text-emerald-400" />
+                Receitas Diárias
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Escolha entre 2 opções para cada refeição
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex flex-wrap gap-2">
+                {[1, 2, 3].map((d) => (
+                  <Button
+                    key={d}
+                    variant={diaSelecionado === d ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      diaSelecionado === d 
+                        ? "bg-gradient-to-r from-emerald-500 to-amber-500 text-white" 
+                        : "border-slate-600 text-slate-400"
+                    )}
+                    onClick={() => setDiaSelecionado(d)}
+                  >
+                    Dia {d}
+                  </Button>
+                ))}
+              </div>
+              <ReceitasDiarias dia={diaSelecionado} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 3 - PASSO A PASSO */}
+        <TabsContent value="passoapasso" className="mt-6">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Target className="h-5 w-5 text-emerald-400" />
+                Passo a Passo
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Siga o protocolo semana a semana
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="single" collapsible className="space-y-2">
+                {PASSO_A_PASSO.map((semana, idx) => (
+                  <AccordionItem key={idx} value={`semana-${idx}`} className="border-slate-700">
+                    <AccordionTrigger className="text-white hover:text-emerald-400">
+                      {semana.semana}
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <ul className="space-y-2">
+                        {semana.passos.map((passo, i) => (
+                          <li key={i} className="flex items-start gap-2 text-slate-300 text-sm">
+                            <span className="text-emerald-400 mt-0.5">•</span>
+                            {passo}
+                          </li>
+                        ))}
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 4 - PROGRESSO */}
+        <TabsContent value="progresso" className="mt-6">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">Seu Progresso</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Dias Completos</span>
+                    <span className="text-emerald-400">{diasCompletos}/90</span>
+                  </div>
+                  <Progress value={progressoTotal} className="h-3 bg-slate-700" />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {Object.keys(FASES_LIMPEZA).map((key) => {
+                    const fase = FASES_LIMPEZA[key as keyof typeof FASES_LIMPEZA];
+                    const isActive = key === faseAtual;
+                    return (
+                      <div key={key} className={cn(
+                        "text-center p-3 rounded-lg border transition-all",
+                        isActive ? "border-emerald-500/30 bg-emerald-500/10" : "bg-slate-700/30 border-slate-600"
+                      )}>
+                        <div className="text-2xl mx-auto text-emerald-400">
+                          {React.createElement(fase.icone, { className: "h-6 w-6 mx-auto" })}
+                        </div>
+                        <p className="text-[10px] text-slate-400">{fase.duracao}</p>
+                        <p className={cn("text-[10px]", isActive ? fase.text : "text-slate-500")}>
+                          {fase.nome.split('-')[1]?.trim() || fase.nome}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

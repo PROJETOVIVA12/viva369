@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Viva369"
+description = "Sistema completo de gestão para food service/gourmet baseado no modelo Mila Gourmet. Inclui catálogo de produtos, PDV com carrinho, painel financeiro, programa de indicações, campanhas, gestão de cardápio, pedidos via WhatsApp, autenticação via Supabase e PWA."
+version = "1.0.0"
+id = "artifacts/viva369"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24047
+
+[services.development]
+run = "pnpm --filter @workspace/viva369 run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/viva369", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/viva369/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24047"
+BASE_PATH = "/"

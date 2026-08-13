@@ -1,0 +1,323 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import {
+  Trophy, Users, Crown, Star, Sparkles, Gift,
+  Plus, Zap, Flame, Medal, Award
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
+
+interface Premio {
+  id: string;
+  desafio_id: string;
+  tipo: string;
+  criado_por: string;
+  nome: string;
+  descricao: string;
+  valor_estimado: number;
+  status: string;
+  criado_em: string;
+}
+
+interface SistemaPremiosGrupoProps {
+  desafioId: string;
+  grupoNome: string;
+}
+
+export default function SistemaPremiosGrupo({ desafioId, grupoNome }: SistemaPremiosGrupoProps) {
+  const { user } = useAuth();
+  const [premios, setPremios] = useState<Premio[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    nome: '',
+    descricao: '',
+    valor_estimado: ''
+  });
+  const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro', texto: string } | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      verificarAdmin();
+      carregarPremios();
+    }
+  }, [user, desafioId]);
+
+  const verificarAdmin = async () => {
+    try {
+      const { data } = await supabase
+        .from('usuarios')
+        .select('role')
+        .eq('id', user?.id)
+        .single();
+      setIsAdmin(data?.role === 'admin');
+    } catch (error) {
+      console.error('Erro ao verificar admin:', error);
+    }
+  };
+
+  const carregarPremios = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('premios_desafios')
+        .select('*')
+        .eq('desafio_id', desafioId)
+        .eq('tipo', 'grupo')
+        .order('criado_em', { ascending: false });
+
+      if (error) throw error;
+      setPremios(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar prêmios:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const criarPremio = async () => {
+    if (!formData.nome || !formData.descricao) {
+      setMensagem({ tipo: 'erro', texto: 'Preencha nome e descrição do prêmio' });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('premios_desafios')
+        .insert({
+          desafio_id: desafioId,
+          tipo: 'grupo',
+          criado_por: user?.id,
+          nome: formData.nome,
+          descricao: formData.descricao,
+          valor_estimado: parseFloat(formData.valor_estimado) || 0,
+          status: 'ativo'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setPremios(prev => [data, ...prev]);
+      setMensagem({ tipo: 'sucesso', texto: '✅ Prêmio do grupo adicionado com sucesso!' });
+      setTimeout(() => setMensagem(null), 3000);
+      setShowDialog(false);
+      setFormData({ nome: '', descricao: '', valor_estimado: '' });
+    } catch (error) {
+      console.error('Erro ao criar prêmio:', error);
+      setMensagem({ tipo: 'erro', texto: '❌ Erro ao criar prêmio' });
+    }
+  };
+
+  const turbinarPremio = async (premio: Premio) => {
+    if (!isAdmin) {
+      setMensagem({ tipo: 'erro', texto: '❌ Apenas administradores podem turbinar prêmios' });
+      return;
+    }
+
+    try {
+      const premiosTurbinados = [
+        { nome: '🏆 Troféu Ouro', valor: 500 },
+        { nome: '💎 Kit Premium', valor: 800 },
+        { nome: '🎯 Pacote VIP', valor: 1000 },
+        { nome: '🏅 Medalha Especial', valor: 600 },
+        { nome: '🌟 Super Prêmio', valor: 1500 }
+      ];
+
+      const turbinado = premiosTurbinados[Math.floor(Math.random() * premiosTurbinados.length)];
+
+      await supabase
+        .from('premios_desafios')
+        .update({
+          status: 'turbinado',
+          turbinado_por: user?.id,
+          data_turbinado: new Date().toISOString(),
+          nome: turbinado.nome,
+          valor_estimado: turbinado.valor
+        })
+        .eq('id', premio.id);
+
+      await supabase
+        .from('notificacoes_premios')
+        .insert({
+          usuario_id: premio.criado_por,
+          premio_id: premio.id,
+          tipo: 'turbinado',
+          mensagem: `🎉 O prêmio do grupo "${premio.nome}" foi turbinado para "${turbinado.nome}"!`
+        });
+
+      setMensagem({ 
+        tipo: 'sucesso', 
+        texto: `🚀 Prêmio do grupo turbinado para ${turbinado.nome}!` 
+      });
+      setTimeout(() => setMensagem(null), 3000);
+      carregarPremios();
+    } catch (error) {
+      console.error('Erro ao turbinar prêmio:', error);
+      setMensagem({ tipo: 'erro', texto: '❌ Erro ao turbinar prêmio' });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="h-5 w-5 text-emerald-400" />
+          <h3 className="text-white font-medium">Prêmios do Grupo</h3>
+          <Badge className="bg-purple-500/20 text-purple-400">
+            {grupoNome}
+          </Badge>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 gap-2"
+          onClick={() => setShowDialog(true)}
+        >
+          <Plus className="h-4 w-4" />
+          Adicionar Prêmio
+        </Button>
+      </div>
+
+      {mensagem && (
+        <Alert className={cn(
+          mensagem.tipo === 'sucesso' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'
+        )}>
+          <AlertDescription className={cn(
+            mensagem.tipo === 'sucesso' ? 'text-emerald-400' : 'text-red-400'
+          )}>
+            {mensagem.texto}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <div className="w-6 h-6 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        </div>
+      ) : premios.length === 0 ? (
+        <div className="text-center py-8 bg-slate-700/20 rounded-lg border border-slate-600">
+          <Gift className="h-12 w-12 mx-auto text-slate-500 mb-2" />
+          <p className="text-slate-400">Nenhum prêmio do grupo adicionado</p>
+          <p className="text-xs text-slate-500">O líder do grupo deve adicionar os prêmios!</p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {premios.map((premio) => {
+            const isTurbinado = premio.status === 'turbinado';
+            return (
+              <div key={premio.id} className={cn(
+                "bg-slate-700/30 p-4 rounded-lg border transition-all",
+                isTurbinado ? "border-amber-500/30 shadow-lg shadow-amber-500/10" : "border-slate-600"
+              )}>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "p-2 rounded-lg bg-gradient-to-r text-white",
+                      isTurbinado ? "from-amber-500 to-yellow-500" : "from-blue-500 to-cyan-500"
+                    )}>
+                      {isTurbinado ? <Flame className="h-5 w-5" /> : <Trophy className="h-5 w-5" />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-white font-medium">{premio.nome}</h4>
+                        {isTurbinado && (
+                          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                            <Zap className="h-3 w-3 mr-1" />
+                            Turbinado!
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-400">{premio.descricao}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-emerald-400">
+                          R$ {premio.valor_estimado?.toFixed(2) || '0,00'}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {new Date(premio.criado_em).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {isAdmin && !isTurbinado && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                      onClick={() => turbinarPremio(premio)}
+                    >
+                      <Zap className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Users className="h-5 w-5 text-emerald-400" />
+              Prêmio do Grupo
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {user?.user_metadata?.nome || 'Líder'}, escolha o prêmio para o desafio em grupo!
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-slate-400">Nome do Prêmio *</Label>
+              <Input
+                value={formData.nome}
+                onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                placeholder="Ex: Churrasco em Grupo"
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <Label className="text-slate-400">Descrição *</Label>
+              <Textarea
+                value={formData.descricao}
+                onChange={(e) => setFormData({...formData, descricao: e.target.value})}
+                placeholder="Descreva o prêmio..."
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <Label className="text-slate-400">Valor Estimado (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.valor_estimado}
+                onChange={(e) => setFormData({...formData, valor_estimado: e.target.value})}
+                placeholder="0,00"
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)} className="border-slate-600 text-slate-400">
+              Cancelar
+            </Button>
+            <Button className="bg-gradient-to-r from-emerald-500 to-amber-500 text-white gap-2" onClick={criarPremio}>
+              <Gift className="h-4 w-4" />
+              Adicionar Prêmio do Grupo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

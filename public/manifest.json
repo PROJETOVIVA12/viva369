@@ -1,0 +1,20 @@
+{
+  "name": "Viva369",
+  "short_name": "Viva369",
+  "description": "Gestão inteligente para gastronomia premium — Feira de Santana, BA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0a09",
+  "theme_color": "#b45309",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "productivity", "business"],
+  "lang": "pt-BR"
+}
